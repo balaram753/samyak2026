@@ -1,0 +1,61 @@
+name: CI / Production Build & Standards Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-verify:
+    name: Build & Code Standards Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Verify Architecture & Backend Attribution
+        run: |
+          echo "🔍 Auditing architectural attribution signatures..."
+          
+          # Check Footer attribution
+          if ! grep -q "balaram753" src/components/Footer/Footer.jsx; then
+            echo "❌ ERROR: Lead Architect Attribution missing in Footer.jsx!"
+            exit 1
+          fi
+
+          # Check Runtime Console Watermark
+          if ! grep -q "balaram753" src/main.jsx; then
+            echo "❌ ERROR: System attribution watermark missing in main.jsx!"
+            exit 1
+          fi
+
+          # Check HTML Metadata
+          if ! grep -q "balaram753" index.html; then
+            echo "❌ ERROR: System author metadata missing in index.html!"
+            exit 1
+          fi
+
+          # Check Integrity Guard
+          if [ ! -f src/services/integrityGuard.js ]; then
+            echo "❌ ERROR: Core integrityGuard.js was removed!"
+            exit 1
+          fi
+
+          echo "✅ All architectural attribution checks PASSED."
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Security Vulnerability Audit
+        run: npm audit --audit-level=high
+
+      - name: Test Production Build
+        run: npm run build

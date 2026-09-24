@@ -1,0 +1,61 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email in ['udaykiranvempati123@gmail.com', 'balaram777.ch@gmail.com']
+      );
+    }
+
+    // Public Event Files
+    match /events/{eventId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Private Student College ID Cards
+    match /users/{uid}/id-card/{fileName} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) 
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)|application/pdf');
+    }
+
+    // Private Payment Proof Screenshots
+    match /users/{uid}/payments/{regId}/{fileName} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) 
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    // User Profile Avatars
+    match /users/{uid}/avatars/{fileName} {
+      allow read: if true;
+      allow write: if isOwner(uid) 
+        && request.resource.size < 3 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    // Public Gallery Photos (Community & Fest Captures)
+    match /gallery_photos/{photoId} {
+      allow read: if true;
+      allow create: if request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow update, delete: if isAdmin();
+    }
+
+    // Public Fest Media & Assets
+    match /media/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,210 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-heading: 'Barlow Condensed', 'Orbitron', -apple-system, sans-serif;
+    --font-cyber: 'Barlow Condensed', 'Space Grotesk', -apple-system, sans-serif;
+    --font-sans: 'Barlow Condensed', 'Inter', -apple-system, sans-serif;
+  }
+
+  * {
+    border-color: rgba(30, 41, 59, 0.4);
+    box-sizing: border-box;
+  }
+
+  html, body {
+    font-family: var(--font-sans);
+    background-color: #000000;
+    color: #f8fafc;
+    letter-spacing: 0.02em;
+  }
+
+  h1, h2, h3, .font-heading {
+    font-family: var(--font-heading);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .font-cyber {
+    font-family: var(--font-cyber);
+  }
+}
+
+/* Custom Festive & Sci-Fi Single-Accent Utilities */
+.text-glow-red, .text-glow-accent, .text-glow-cyan, .text-glow-orange {
+  text-shadow: 0 0 10px rgba(239, 68, 68, 0.7), 0 0 25px rgba(244, 63, 94, 0.4);
+}
+
+.box-glow-red, .box-glow-accent, .box-glow-cyan, .box-glow-orange {
+  box-shadow: 0 0 25px -5px rgba(239, 68, 68, 0.4), 0 0 10px -2px rgba(244, 63, 94, 0.25);
+}
+
+.cyber-border {
+  position: relative;
+}
+
+.cyber-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.6), rgba(244, 63, 94, 0.2), rgba(225, 29, 72, 0.4));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.cyber-glass {
+  background: rgba(15, 15, 15, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.cyber-card {
+  background: linear-gradient(180deg, rgba(18, 18, 18, 0.9) 0%, rgba(8, 8, 8, 0.98) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* 3D Perspective Preservation */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.perspective-2000 {
+  perspective: 2000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #dc2626;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ef4444;
+}
+
+/* Animations */
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+    filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.6));
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 35px rgba(244, 63, 94, 0.85));
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 4s ease-in-out infinite;
+}
+
+@keyframes floatMascot {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(1.5deg);
+  }
+}
+
+.animate-float-mascot {
+  animation: floatMascot 4.5s ease-in-out infinite;
+}
+
+@keyframes scanline {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 0% 100%;
+  }
+}
+
+.cyber-grid-bg {
+  background-size: 50px 50px;
+  background-image: 
+    linear-gradient(to right, rgba(239, 68, 68, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(239, 68, 68, 0.05) 1px, transparent 1px);
+}
+
+/* 3D Holographic Stage and Glassmorphism Styles */
+.perspective-1200 {
+  perspective: 1200px;
+}
+
+.perspective-1600 {
+  perspective: 1600px;
+}
+
+.glass-card-3d {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(18, 10, 14, 0.62) 45%, rgba(10, 5, 8, 0.75) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.85), 0 0 25px rgba(239, 68, 68, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.28);
+}
+
+.glass-card-3d:hover {
+  border-color: rgba(239, 68, 68, 0.65);
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.9), 0 0 35px rgba(239, 68, 68, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.4);
+}
+
+@keyframes rotateHoloRing {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rotateHoloRingReverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes pulseHoloGlow {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.06);
+  }
+}
+
+.animate-holo-rotate {
+  animation: rotateHoloRing 28s linear infinite;
+}
+
+.animate-holo-reverse {
+  animation: rotateHoloRingReverse 20s linear infinite;
+}
+
+.animate-holo-pulse {
+  animation: pulseHoloGlow 4s ease-in-out infinite;
+}
+

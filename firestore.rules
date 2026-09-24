@@ -1,0 +1,248 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =========================================================================
+    // AUTHORIZATION HELPERS
+    // =========================================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && request.auth.token.email != null && (
+        request.auth.token.email.lower() == 'udaykiranvempati123@gmail.com' ||
+        request.auth.token.email.lower() == 'balaram777.ch@gmail.com'
+      );
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        isSuperAdmin() ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role in ['super_admin', 'admin', 'wing_admin', 'SUPER_ADMIN', 'ADMIN']) ||
+        (request.auth.token.email != null &&
+         exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())).data.role in ['super_admin', 'admin', 'wing_admin', 'SUPER_ADMIN', 'ADMIN']) ||
+        (exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['SUPER_ADMIN', 'ADMIN', 'super_admin', 'admin'] &&
+         get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.active != false) ||
+        (request.auth.token.email != null &&
+         exists(/databases/$(database)/documents/staff/$(request.auth.token.email.lower())) &&
+         get(/databases/$(database)/documents/staff/$(request.auth.token.email.lower())).data.role in ['SUPER_ADMIN', 'ADMIN', 'super_admin', 'admin'] &&
+         get(/databases/$(database)/documents/staff/$(request.auth.token.email.lower())).data.active != false)
+      );
+    }
+
+    function isGateStaff() {
+      return isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role in ['core_team', 'gate_staff', 'security', 'volunteer', 'CORE_TEAM', 'GATE_STAFF']) ||
+        (request.auth.token.email != null &&
+         exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())).data.role in ['core_team', 'gate_staff', 'security', 'volunteer', 'CORE_TEAM', 'GATE_STAFF']) ||
+        (exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role in ['CORE_TEAM', 'GATE_STAFF', 'ADMIN', 'SUPER_ADMIN', 'core_team', 'gate_staff', 'admin', 'super_admin'] &&
+         get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.active != false) ||
+        (request.auth.token.email != null &&
+         exists(/databases/$(database)/documents/staff/$(request.auth.token.email.lower())) &&
+         get(/databases/$(database)/documents/staff/$(request.auth.token.email.lower())).data.role in ['CORE_TEAM', 'GATE_STAFF', 'ADMIN', 'SUPER_ADMIN', 'core_team', 'gate_staff', 'admin', 'super_admin'] &&
+         get(/databases/$(database)/documents/staff/$(request.auth.token.email.lower())).data.active != false)
+      );
+    }
+
+    // =========================================================================
+    // 1. ADMINS & STAFF COLLECTIONS
+    // Authenticated users can read (needed for privilege lookup)
+    // Only super admins and authorized admins can manage staff accounts
+    // =========================================================================
+    // Admin docs hold passcodes and roles: only the account itself (by uid or
+    // verified email) and admins may read them. Rule helpers use get(), which
+    // is not subject to these read rules.
+    function isOwnAccountDoc(adminId) {
+      return isAuthenticated() && (
+        request.auth.uid == adminId ||
+        (request.auth.token.email != null &&
+         request.auth.token.email_verified == true &&
+         (adminId == request.auth.token.email.lower() || resource.data.email == request.auth.token.email))
+      );
+    }
+
+    match /admins/{adminId} {
+      allow read: if isAdmin() || isOwnAccountDoc(adminId);
+      allow write: if isSuperAdmin();
+    }
+
+    match /staff/{staffId} {
+      allow read: if isGateStaff() || isOwnAccountDoc(staffId);
+      allow write: if isSuperAdmin() || isAdmin();
+    }
+
+    // =========================================================================
+    // 2. USER PROFILES
+    // Read: Allowed so profiles, avatars, and check-ins display correctly
+    // Write: Scoped to owner or fest admin
+    // =========================================================================
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isGateStaff());
+      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // =========================================================================
+    // 3. PAYMENTS COLLECTION
+    // Read: Authenticated / public read so UTR uniqueness check and user tracking work
+    // Create: Authenticated users submitting their payment proof
+    // Update/Delete: Committee Admins only
+    // =========================================================================
+    match /payments/{paymentId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.paymentStatus in ['PENDING_PAYMENT', 'PAYMENT_SUBMITTED', 'PENDING_VERIFICATION']
+        && request.resource.data.gatePassStatus == 'NOT_ISSUED'
+        && request.resource.data.gatePassToken == null;
+      allow update, delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 4. REGISTRATIONS COLLECTION (Unified SAMYAK Lifecycle)
+    // Read: Allows real-time listener by uid and duplicate UTR check
+    // Create & Update: Authenticated student registration
+    // Delete: Committee Admin only
+    // =========================================================================
+    // Students may create/update only their own registration and may never
+    // self-verify a payment or self-issue / reset a gate pass.
+    function studentPaymentOk() {
+      let p = request.resource.data.get('payment', null);
+      return p == null
+        || (resource != null && p == resource.data.get('payment', null))
+        || (p.status in ['PENDING_PAYMENT', 'PAYMENT_SUBMITTED', 'PENDING_VERIFICATION']
+            && p.get('verifiedAt', null) == null
+            && p.get('verifiedBy', null) == null);
+    }
+
+    function studentGatePassOk() {
+      let g = request.resource.data.get('gatePass', null);
+      return g == null
+        || (resource != null && g == resource.data.get('gatePass', null))
+        || (g.status == 'NOT_ISSUED'
+            && g.get('token', null) == null
+            && g.get('checkedIn', false) == false);
+    }
+
+    match /registrations/{regId} {
+      allow read: if isGateStaff() || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow create: if isAuthenticated()
+        && request.resource.data.uid == request.auth.uid
+        && studentPaymentOk() && studentGatePassOk();
+      allow update: if isAdmin() || isGateStaff() || (
+        isAuthenticated()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && studentPaymentOk() && studentGatePassOk()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 5. LEGACY STUDENT REGISTRATIONS & ID CARDS
+    // =========================================================================
+    match /student_registrations/{regId} {
+      allow read: if isGateStaff();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 6. GATE PASSES
+    // Public read so QR scanners, tickets, and check-in listeners work seamlessly
+    // Creation & Deletion: Admin only
+    // Check-in & Updates: Admin or authorized Gate Staff
+    // =========================================================================
+    // A token is a bearer secret: anyone holding it may fetch that one pass,
+    // but only staff may list/query passes (prevents token enumeration).
+    match /gate_passes/{token} {
+      allow get: if true;
+      allow list: if isGateStaff();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || isGateStaff();
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 7. AUDIT LOGS (Immutable security audit trail)
+    // =========================================================================
+    match /audit_logs/{logId} {
+      allow create: if isAuthenticated();
+      allow read: if isAdmin() || isGateStaff();
+      allow update, delete: if false; // Audit logs can never be mutated or erased
+    }
+
+    match /gate_pass_audits/{auditId} {
+      allow create: if isGateStaff();
+      allow read: if isGateStaff();
+      allow update, delete: if false;
+    }
+
+    match /gatePassAudit/{auditId} {
+      allow create: if isGateStaff();
+      allow read: if isGateStaff();
+      allow update, delete: if false;
+    }
+
+    // =========================================================================
+    // 8. EVENT REGISTRATIONS (Slot registrations)
+    // =========================================================================
+    match /event_registrations/{regId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['event_id', 'email', 'student_name']);
+      allow update, delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 9. CONTACT FORM INQUIRIES
+    // =========================================================================
+    match /inquiries/{inquiryId} {
+      allow create: if true; // Public contact form
+      allow read, update, delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 10. PUBLIC CONTENT (Events, Schedule, About, Media, Gallery)
+    // =========================================================================
+    match /site_content/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registration_count', 'available_seats', 'updated_at'])
+      );
+    }
+
+    match /gallery/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /gallery_photos/{photoId} {
+      allow read: if true;
+      allow create: if true; // Public delegate photo upload
+      allow update, delete: if isAdmin();
+    }
+
+    match /media_folders/{folderId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /media_files/{fileId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

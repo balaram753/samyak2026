@@ -1,0 +1,31 @@
+# ========================================================
+# SAMYAK 2026 - Code Ownership & Governance
+# 
+# Requires @balaram753 approval for any changes to backend,
+# security rules, payment workflows, and verification engines.
+# ========================================================
+
+# Global Fallback
+* @balaram753
+
+# Backend Services & Cloud Integrations
+/src/services/ @balaram753
+/src/context/ @balaram753
+/src/config/ @balaram753
+
+# Gate Pass Scanner & Verification Infrastructure
+/src/pages/GateScannerPage.jsx @balaram753
+/src/pages/GateVerifyPage.jsx @balaram753
+/src/services/gatePassService.js @balaram753
+
+# Admin Management Suites
+/src/pages/Admin/ @balaram753
+
+# Database & Storage Security Rules
+/firestore.rules @balaram753
+/storage.rules @balaram753
+
+# Root & Configuration
+/.github/ @balaram753
+/package.json @balaram753
+/vite.config.js @balaram753

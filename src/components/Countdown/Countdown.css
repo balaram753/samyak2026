@@ -1,0 +1,57 @@
+/* Minimal Futuristic HUD Countdown Styles */
+
+@keyframes hudNumberFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hud-digit-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  height: 1.75rem;
+}
+
+@media (min-width: 640px) {
+  .hud-digit-slot {
+    height: 2.75rem;
+  }
+}
+
+.hud-digit-value {
+  display: inline-block;
+  animation: hudNumberFadeIn 300ms ease-out forwards;
+  will-change: transform, opacity;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8), 0 0 16px rgba(6, 182, 212, 0.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-digit-value {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Futuristic HUD Panel & Unit Boxes (Completely Transparent / No Background) */
+.hud-panel {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.hud-unit-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+

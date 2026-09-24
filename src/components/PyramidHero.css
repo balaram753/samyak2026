@@ -1,0 +1,119 @@
+/* SAMYAK 2026 - Pinned Cinematic Video Hero Styles */
+
+.pyramid-hero-container {
+  position: relative;
+  width: 100%;
+  height: 400vh;
+  background-color: #000000;
+}
+
+.pyramid-sticky-viewport {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #000000;
+}
+
+.pyramid-hero-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  user-select: none;
+  filter: contrast(1.04) brightness(0.98);
+  will-change: transform;
+}
+
+/* Subtle Cinematic Framing Vignettes */
+.pyramid-hero-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 50%,
+    transparent 55%,
+    rgba(2, 6, 18, 0.4) 80%,
+    rgba(2, 6, 18, 0.85) 100%
+  );
+  z-index: 2;
+}
+
+.pyramid-hero-top-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 140px;
+  background: linear-gradient(to bottom, rgba(2, 6, 18, 0.75) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pyramid-hero-bottom-gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 160px;
+  background: linear-gradient(to top, rgba(2, 6, 18, 0.85) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Text & UI Glow Effects */
+.text-glow-samyak {
+  text-shadow: 0 0 35px rgba(255, 255, 255, 0.9), 0 0 70px rgba(239, 68, 68, 0.5);
+}
+
+.text-glow-orange-brand {
+  text-shadow: 0 0 25px rgba(239, 68, 68, 0.8), 0 0 50px rgba(244, 63, 94, 0.5);
+}
+
+/* Vertical Scroll Line Pulse */
+@keyframes scrollLineTravel {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.animate-scroll-line {
+  animation: scrollLineTravel 2.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+/* Glassmorphic Cyber Pills */
+.hero-cyber-pill {
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  box-shadow: 0 4px 24px -1px rgba(239, 68, 68, 0.15);
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+  .pyramid-hero-container {
+    height: 500vh;
+  }
+}
