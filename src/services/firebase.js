@@ -33,13 +33,13 @@ import {
 } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || (typeof atob === 'function' ? atob("QUl6YVN5QlYwY3lvNTEyUFU5M0kxRVRQVUJSMjRuTUtndFdJcXhZ") : ""),
-  authDomain: "kl--samyak.firebaseapp.com",
-  projectId: "kl--samyak",
-  storageBucket: "kl--samyak.firebasestorage.app",
-  messagingSenderId: "398032374289",
-  appId: "1:398032374289:web:ca6a7ab94ea0f1476d7fb0",
-  measurementId: "G-QPST5S3P93"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || (typeof atob === 'function' ? atob("QUl6YVN5RHZqTTlTTkdaN0Rwd0toT0QxVk5odnhjLVhsZmFyMl9F") : ""),
+  authDomain: "nirva-7e226.firebaseapp.com",
+  projectId: "nirva-7e226",
+  storageBucket: "nirva-7e226.firebasestorage.app",
+  messagingSenderId: "871650355611",
+  appId: "1:871650355611:web:484075af5c1370a2cc193e",
+  measurementId: "G-335H8GK65G"
 };
 
 // Initialize Firebase
