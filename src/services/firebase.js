@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
+  OAuthProvider,
   signInWithPopup, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -22,7 +23,10 @@ import {
   query, 
   where,
   orderBy, 
-  serverTimestamp 
+  limit,
+  runTransaction,
+  serverTimestamp,
+  increment
 } from 'firebase/firestore';
 
 import { 
@@ -51,7 +55,30 @@ export const storage = getStorage(app);
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 });
+
+// Google Provider — for External participants & admins
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
+
+// Microsoft Provider — for KL University Internal students (@kluniversity.in)
+export const microsoftProvider = new OAuthProvider('microsoft.com');
+microsoftProvider.addScope('email');
+microsoftProvider.addScope('profile');
+microsoftProvider.setCustomParameters({
+  prompt: 'select_account',
+  // Optionally restrict to KL University tenant if you have the tenant ID:
+  // tenant: 'YOUR_AZURE_TENANT_ID',
+});
+
+/** KL University email domain — used for INTERNAL category auto-verification */
+export const KLU_EMAIL_DOMAIN = '@kluniversity.in';
+
+/** Returns true if the email belongs to KL University */
+export function isKLUEmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  return email.trim().toLowerCase().endsWith(KLU_EMAIL_DOMAIN);
+}
 
 export {
   signInWithPopup,
@@ -70,7 +97,10 @@ export {
   query,
   where,
   orderBy,
+  limit,
+  runTransaction,
   serverTimestamp,
+  increment,
   storageRef,
   uploadBytes,
   getDownloadURL

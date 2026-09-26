@@ -5,7 +5,7 @@ import {
   Camera, CameraOff, ArrowRight, ShieldCheck, Zap, 
   CheckCircle2, XCircle, AlertOctagon, LogIn, LogOut, 
   History, Users, RefreshCw, UserCheck, ShieldAlert,
-  Sliders, Plus, Trash2, Check, Lock
+  Sliders, Plus, Trash2, Check, Lock, School
 } from 'lucide-react';
 import { auth, googleProvider, signInWithPopup, signOut } from '../services/firebase';
 import { 
@@ -775,6 +775,49 @@ export default function GateScannerPage() {
                       type="button"
                       onClick={handleResetForNextScan}
                       className="w-full py-3.5 rounded-2xl bg-amber-600 hover:bg-amber-500 text-black font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>SCAN NEXT PASS</span>
+                    </button>
+                  </div>
+                ) : scannedResult.status === 'INTERNAL_PARTICIPANT' ? (
+                  /* INTERNAL KL UNIVERSITY STUDENT CARD */
+                  <div className="p-6 sm:p-7 rounded-3xl border-2 border-cyan-500 bg-[#05141c] text-center space-y-5 shadow-[0_0_60px_rgba(6,182,212,0.3)]">
+                    <div className="w-16 h-16 rounded-full bg-cyan-500/20 border-2 border-cyan-500 text-cyan-400 flex items-center justify-center mx-auto shadow-[0_0_25px_rgba(6,182,212,0.5)]">
+                      <School className="w-9 h-9" />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 text-xs font-mono font-bold uppercase tracking-wider">
+                        <span>ℹ INTERNAL KL UNIVERSITY STUDENT</span>
+                      </div>
+                      <h2 className="text-2xl font-black font-heading text-white">
+                        GATE PASS <span className="text-cyan-400">NOT REQUIRED</span>
+                      </h2>
+                      <p className="text-xs font-mono text-cyan-200/90 max-w-xs mx-auto">
+                        This participant is an internal KL University student. Entry and attendance should be granted with their physical or digital KL Student ID Card.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-black/70 border border-cyan-500/40 text-xs font-mono text-left space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Student Name:</span>
+                        <span className="font-bold text-white">{scannedResult.data?.name || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Student Roll / ID:</span>
+                        <span className="font-bold text-cyan-300">{scannedResult.data?.rollNo || scannedResult.data?.studentId || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-400">Institution:</span>
+                        <span className="font-bold text-cyan-400">KL University</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleResetForNextScan}
+                      className="w-full py-3.5 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-black font-heading font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors"
                     >
                       <Camera className="w-4 h-4" />
                       <span>SCAN NEXT PASS</span>

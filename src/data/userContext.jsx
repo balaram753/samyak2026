@@ -4,12 +4,14 @@ import {
   collection, query, where, getDocs, onSnapshot, limit, addDoc 
 } from 'firebase/firestore';
 import { 
-  auth, db, googleProvider, signInWithPopup, signOut as fbSignOut 
+  auth, db, googleProvider, microsoftProvider, signInWithPopup, signOut as fbSignOut, isKLUEmail
 } from '../services/firebase';
 import { uploadSecureUserFile } from '../services/storageService';
 import { UserContext } from './UserContextObject';
 import { PAYMENT_STATUS, GATE_PASS_STATUS, recordAuditLog } from '../services/gatePassService';
 import { sanitizeText, checkRateLimit } from '../services/fileSecurityService';
+import { enrollParticipant, checkExistingEnrollment } from '../services/registrationService';
+import { ATTENDANCE_STATUS } from '../services/attendanceService';
 
 /**
  * SAMYAK 2026 — Unified User & Registration Lifecycle Provider
@@ -114,6 +116,8 @@ export function UserProvider({ children }) {
 
     const regId = registrationDoc?.registrationId || registrationDoc?.id || '';
     const tier = registrationDoc?.tier || 'PAY EVENT FEE & PASS';
+    const category = registrationDoc?.category || profileDoc?.category || null;
+    const categoryVerificationStatus = registrationDoc?.categoryVerificationStatus || profileDoc?.categoryVerificationStatus || null;
     const payment = registrationDoc?.payment || {
       status: PAYMENT_STATUS.PENDING_PAYMENT,
       amount: 499,
@@ -131,6 +135,13 @@ export function UserProvider({ children }) {
       checkedIn: false,
       checkedInAt: null
     };
+    const attendance = registrationDoc?.attendance || {
+      status: ATTENDANCE_STATUS.NOT_MARKED,
+      markedAt: null,
+      markedBy: null,
+    };
+    const isInternalParticipant = category === 'INTERNAL';
+    const isExternalParticipant = category === 'EXTERNAL';
 
     return {
       uid: currentUser?.uid || null,
@@ -151,23 +162,55 @@ export function UserProvider({ children }) {
       registrationId: regId,
       tier,
       passTier: tier,
+      category,
+      categoryVerificationStatus,
+      isInternalParticipant,
+      isExternalParticipant,
       registrationStatus: registrationDoc?.registrationStatus || (regId ? 'REGISTERED' : 'UNREGISTERED'),
       payment,
       paymentStatus: payment.status,
       gatePass,
       gatePassStatus: gatePass.status,
       gatePassToken: gatePass.token,
+      attendance,
+      attendanceStatus: attendance.status,
       registeredEvents: registrationDoc?.registeredEvents || []
     };
   }, [currentUser, profileDoc, registrationDoc]);
 
-  // Auth Action: Google Sign-In
+  // Auth Action: Google Sign-In (for External participants & admins)
   const loginWithGoogle = useCallback(async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       return result.user;
     } catch (error) {
       console.error('Google Sign-In Error:', error);
+      throw error;
+    }
+  }, []);
+
+  // Auth Action: Microsoft Sign-In (for KL University Internal students)
+  const loginWithMicrosoft = useCallback(async () => {
+    try {
+      const result = await signInWithPopup(auth, microsoftProvider);
+      const user = result.user;
+      // Auto-detect KL University email
+      const kluUser = isKLUEmail(user.email);
+      // Store provider hint on the user doc for category pre-selection
+      if (user.uid) {
+        const userRef = doc(db, 'users', user.uid);
+        setDoc(userRef, {
+          uid: user.uid,
+          name: user.displayName || '',
+          email: user.email || '',
+          authProvider: 'microsoft',
+          suggestedCategory: kluUser ? 'INTERNAL' : null,
+          updatedAt: serverTimestamp(),
+        }, { merge: true }).catch(console.warn);
+      }
+      return { user, isKLUEmail: kluUser };
+    } catch (error) {
+      console.error('Microsoft Sign-In Error:', error);
       throw error;
     }
   }, []);
@@ -460,10 +503,13 @@ export function UserProvider({ children }) {
     isRegistered: Boolean(userData.registrationId),
     isProfileComplete: userData.profileCompleted,
     loginWithGoogle,
+    loginWithMicrosoft,
     logout,
     completeProfile,
     uploadCollegeIdCard,
     createRegistration,
+    enrollParticipant,       // new: full enrollment via registrationService
+    checkExistingEnrollment, // new: check for duplicate enrollment
     submitPaymentProof,
     updatePayment,
   };

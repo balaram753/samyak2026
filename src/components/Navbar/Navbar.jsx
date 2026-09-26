@@ -18,7 +18,7 @@ const NAV_ITEMS = [
 
 export default function Navbar() {
   const { isAdmin, isSuperAdmin } = useAdminAuth();
-  const { isRegistered, userData } = useUser();
+  const { isRegistered, userData, currentUser } = useUser();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -162,12 +162,12 @@ export default function Navbar() {
                 </Link>
 
                 <Link
-                  to="/profile"
+                  to="/enroll"
                   className="relative group overflow-hidden px-6 xl:px-8 py-2.5 xl:py-3 rounded-full font-heading text-xs xl:text-sm font-black tracking-wider uppercase text-white bg-gradient-to-r from-red-600 via-rose-500 to-red-600 transition-all duration-300 shadow-[0_0_25px_rgba(239,68,68,0.6)] hover:shadow-[0_0_35px_rgba(239,68,68,0.9)] hover:scale-105 active:scale-95"
                 >
                   <span className="relative z-10 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 fill-current text-white" />
-                    Register Now
+                    {currentUser ? 'Enroll Now' : 'Register Now'}
                   </span>
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                 </Link>
@@ -264,11 +264,12 @@ export default function Navbar() {
                   </Link>
                 ) : (
                   <Link
-                    to="/profile"
+                    to="/enroll"
                     onClick={() => setMobileMenuOpen(false)}
                     className="w-full text-center py-3 rounded-full font-heading text-xs font-bold uppercase tracking-wider text-white bg-gradient-to-r from-red-600 via-rose-500 to-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]"
                   >
-                    Sign In / Profile
+                    {/* Show context-aware CTA */}
+                    Enroll Now
                   </Link>
                 )}
               </div>

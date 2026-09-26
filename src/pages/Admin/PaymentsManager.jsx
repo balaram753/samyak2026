@@ -86,8 +86,11 @@ export default function PaymentsManager({ onToast }) {
 
       if (res.alreadyIssued) {
         if (onToast) onToast(`Gate Pass already active: ${res.gatePassToken}`, 'info');
+      } else if (res.gatePassStatus === 'NOT_REQUIRED' || res.category === 'INTERNAL') {
+        // Internal participant — no gate pass
+        if (onToast) onToast(`✓ Payment verified — KL University internal participant (no gate pass required).`, 'success');
       } else {
-        if (onToast) onToast(`Payment verified! Unique Gate Pass issued: ${res.gatePassToken}`, 'success');
+        if (onToast) onToast(`✓ Payment verified! Gate Pass issued: ${res.gatePassToken}`, 'success');
       }
 
       if (selectedPaymentModal?.id === payment.id) {
@@ -95,7 +98,7 @@ export default function PaymentsManager({ onToast }) {
           ...prev, 
           status: 'verified', 
           paymentStatus: PAYMENT_STATUS.VERIFIED,
-          gatePassStatus: GATE_PASS_STATUS.ISSUED,
+          gatePassStatus: res.gatePassStatus === 'NOT_REQUIRED' ? 'NOT_REQUIRED' : GATE_PASS_STATUS.ISSUED,
           gatePassToken: res.gatePassToken 
         }));
       }

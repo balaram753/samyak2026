@@ -5,11 +5,12 @@ import {
   User, School, 
   CreditCard, ArrowRight, ShieldCheck,
   LogOut, Upload, X, Edit, IdCard,
-  Lock, Eye, RefreshCw
+  Lock, Eye, RefreshCw, CheckCircle2, Check
 } from 'lucide-react';
 import { useUser } from '../../data/useUser';
 import GatePassCard from '../Payment/GatePassCard';
 import { maskUtr, maskPhone } from '../../services/fileSecurityService';
+import { isKLUEmail } from '../../services/firebase';
 
 export default function ProfileDashboard() {
   const { 
@@ -18,6 +19,7 @@ export default function ProfileDashboard() {
     userData, 
     isProfileComplete,
     loginWithGoogle, 
+    loginWithMicrosoft,
     logout, 
     completeProfile,
     uploadCollegeIdCard 
@@ -146,19 +148,37 @@ export default function ProfileDashboard() {
             Access your unified festival dashboard, complete your registration, submit verified UPI payments, and unlock your unique QR gate pass.
           </p>
 
-          <button
-            type="button"
-            onClick={loginWithGoogle}
-            className="w-full py-4 px-6 rounded-2xl bg-white hover:bg-neutral-100 text-neutral-900 font-mono font-bold text-sm flex items-center justify-center gap-3 transition-all transform hover:scale-[1.01] active:scale-[0.99] shadow-lg cursor-pointer"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-            </svg>
-            <span>Continue with Google</span>
-          </button>
+          <div className="space-y-3">
+            {/* Microsoft for KL University Students */}
+            <button
+              type="button"
+              onClick={loginWithMicrosoft}
+              className="w-full py-4 px-6 rounded-2xl bg-[#00a4ef]/15 hover:bg-[#00a4ef]/25 border border-[#00a4ef]/40 text-cyan-300 font-mono font-bold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all transform hover:scale-[1.01] active:scale-[0.99] shadow-lg cursor-pointer"
+            >
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 23 23">
+                <path fill="#f35325" d="M1 1h10v10H1z"/>
+                <path fill="#81bc06" d="M12 1h10v10H12z"/>
+                <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+                <path fill="#ffba08" d="M12 12h10v10H12z"/>
+              </svg>
+              <span>KL University Students — Sign in with Microsoft</span>
+            </button>
+
+            {/* Google for Outside College Participants */}
+            <button
+              type="button"
+              onClick={loginWithGoogle}
+              className="w-full py-3.5 px-6 rounded-2xl bg-white hover:bg-neutral-100 text-neutral-900 font-mono font-bold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all transform hover:scale-[1.01] active:scale-[0.99] shadow-lg cursor-pointer"
+            >
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>Outside College Participants — Continue with Google</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -311,9 +331,39 @@ export default function ProfileDashboard() {
           </div>
 
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
               <span className="text-[10px] font-mono uppercase text-neutral-400">Authenticated SAMYAK Account</span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+
+              {/* Category Badge */}
+              {(userData.category === 'INTERNAL' || isKLUEmail(userData.email)) ? (
+                <span className="px-2.5 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1">
+                  🏫 KL University (Internal)
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-full bg-purple-950/80 border border-purple-500/50 text-purple-300 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1">
+                  🎓 External Participant
+                </span>
+              )}
+
+              {/* Category Verification Status */}
+              {userData.categoryVerificationStatus === 'VERIFIED' && (
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-mono font-bold">
+                  ✓ Verified
+                </span>
+              )}
+              {userData.categoryVerificationStatus === 'PENDING' && (
+                <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-[10px] font-mono font-bold">
+                  ⏳ Review Pending
+                </span>
+              )}
+
+              {/* Attendance Status */}
+              {userData.attendance?.status === 'PRESENT' && (
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/30 border border-emerald-400 text-emerald-300 text-[10px] font-mono font-bold shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                  ✓ Present at Fest
+                </span>
+              )}
             </div>
             <h1 className="text-xl sm:text-2xl font-black font-heading text-white">{userData.name}</h1>
             <p className="text-xs font-mono text-neutral-400">{userData.email}</p>
@@ -480,7 +530,7 @@ export default function ProfileDashboard() {
                   Select your festival pass tier to unlock all 45+ flagship arenas.
                 </p>
                 <Link
-                  to="/payment"
+                  to="/enroll"
                   className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-mono font-bold uppercase tracking-wider transition-all"
                 >
                   Register Now
@@ -571,7 +621,7 @@ export default function ProfileDashboard() {
                   Single pass required for full festival access and event enrollment.
                 </p>
                 <Link
-                  to="/payment"
+                  to="/enroll"
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white text-xs font-mono font-bold uppercase tracking-wider transition-all text-center shrink-0 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
                 >
                   PAY EVENT FEE &amp; PASS
@@ -585,84 +635,143 @@ export default function ProfileDashboard() {
         {/* Right Column (1 Col): GATE PASS (Section 14 & 19) */}
         <div className="space-y-6">
 
-          {/* 5. GATE PASS SECTION */}
-          <div className="p-6 rounded-3xl bg-neutral-950 border border-neutral-800 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                <h3 className="text-sm font-bold font-heading text-white uppercase tracking-wider">
-                  Gate Pass
-                </h3>
+          {/* 5. GATE PASS / ENTRY STATUS SECTION */}
+          {(userData.category === 'INTERNAL' || isKLUEmail(userData.email)) ? (
+            /* INTERNAL PARTICIPANT: NO GATE PASS NEEDED — SHOW KLU ID ACCESS CARD */
+            <div className="p-6 rounded-3xl bg-neutral-950 border border-neutral-800 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+                <div className="flex items-center gap-2">
+                  <School className="w-4 h-4 text-cyan-400" />
+                  <h3 className="text-sm font-bold font-heading text-white uppercase tracking-wider">
+                    Campus Entry Credential
+                  </h3>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[10px] font-mono font-bold">
+                  ✓ GATE PASS NOT REQUIRED
+                </span>
               </div>
 
-              {isPaymentVerified ? (
-                <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 text-[10px] font-mono font-bold">
-                  ✓ ISSUED
-                </span>
-              ) : (
-                <span className="px-2.5 py-0.5 rounded-full bg-neutral-800 text-neutral-500 text-[10px] font-mono font-bold flex items-center gap-1">
-                  <Lock className="w-3 h-3" />
-                  LOCKED
-                </span>
+              <div className="p-5 rounded-2xl bg-gradient-to-b from-cyan-950/25 to-black border border-cyan-500/30 text-center space-y-4">
+                <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 text-cyan-400 mx-auto flex items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.2)]">
+                  <School className="w-7 h-7" />
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono uppercase text-cyan-400 font-bold tracking-widest block">
+                    KL University Student
+                  </span>
+                  <h4 className="text-base font-black font-heading text-white">
+                    COLLEGE ID CARD IS YOUR ENTRY PASS
+                  </h4>
+                  <p className="text-xs text-neutral-300 font-mono leading-relaxed max-w-sm mx-auto pt-1">
+                    As an internal KL University student, you do not need an external QR Gate Pass. Carry and present your physical or digital KL Student ID Card at event arenas and festival checkpoints.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-black/60 border border-neutral-800 text-left text-xs font-mono space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-neutral-400">Student ID / Roll:</span>
+                    <span className="font-bold text-cyan-400">{userData.studentId || 'Recorded'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-neutral-400">Institution:</span>
+                    <span className="text-white font-bold">KL University</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-neutral-400">Fest Fee Status:</span>
+                    <span className={isPaymentVerified ? "text-emerald-400 font-bold" : isPaymentPending ? "text-yellow-400 font-bold" : "text-neutral-400"}>
+                      {isPaymentVerified ? "✓ Verified" : isPaymentPending ? "● Under Verification" : "Pending Submission"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-neutral-400">Fest Attendance:</span>
+                    <span className={userData.attendance?.status === 'PRESENT' ? "text-emerald-400 font-bold" : "text-neutral-400"}>
+                      {userData.attendance?.status === 'PRESENT' ? "✓ PRESENT" : "NOT MARKED"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* EXTERNAL PARTICIPANT: OFFICIAL QR GATE PASS */
+            <div className="p-6 rounded-3xl bg-neutral-950 border border-neutral-800 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                  <h3 className="text-sm font-bold font-heading text-white uppercase tracking-wider">
+                    Gate Pass
+                  </h3>
+                </div>
+
+                {isPaymentVerified ? (
+                  <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 text-[10px] font-mono font-bold">
+                    ✓ ISSUED
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full bg-neutral-800 text-neutral-500 text-[10px] font-mono font-bold flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    LOCKED
+                  </span>
+                )}
+              </div>
+
+              {/* IF PAYMENT NOT VERIFIED: STRICTLY LOCKED WITH NO QR (Section 14) */}
+              {!isPaymentVerified && (
+                <div className="p-6 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-neutral-800 text-neutral-500 mx-auto flex items-center justify-center">
+                    <Lock className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-sm font-bold font-heading text-white">🔒 NOT AVAILABLE YET</h4>
+                  <p className="text-xs text-neutral-400 font-mono leading-relaxed">
+                    Your Gate Pass will be generated after your payment has been verified by the fest committee.
+                  </p>
+                  <div className="pt-2">
+                    <span className="text-[10px] font-mono text-neutral-500 block">
+                      Status: {paymentStatus.replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* IF PAYMENT VERIFIED: REAL UNIQUE QR GATE PASS (Section 19) */}
+              {isPaymentVerified && userData.gatePassToken && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-black border border-cyan-500/30 text-center space-y-3">
+                    <span className="text-[10px] font-mono uppercase text-cyan-400 tracking-wider block">
+                      Official Festival Gate Pass
+                    </span>
+
+                    {/* Scannable Gate Pass QR */}
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(
+                        (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1'))
+                          ? `${window.location.origin}/gate/verify/${userData.gatePassToken}`
+                          : `https://kl--samyak.web.app/gate/verify/${userData.gatePassToken}`
+                      )}`}
+                      alt="SAMYAK 2026 Gate Pass QR"
+                      className="w-48 h-48 mx-auto bg-white p-3 rounded-2xl object-contain shadow-lg"
+                    />
+
+                    <div className="text-xs font-mono text-white font-bold">
+                      {userData.name}
+                    </div>
+                    <div className="text-[10px] font-mono text-neutral-400">
+                      {userData.studentId} • {userData.college}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setFullGatePassModalOpen(true)}
+                    className="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>View Full Gate Pass</span>
+                  </button>
+                </div>
               )}
             </div>
-
-            {/* IF PAYMENT NOT VERIFIED: STRICTLY LOCKED WITH NO QR (Section 14) */}
-            {!isPaymentVerified && (
-              <div className="p-6 rounded-2xl bg-neutral-900/50 border border-neutral-800 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-neutral-800 text-neutral-500 mx-auto flex items-center justify-center">
-                  <Lock className="w-6 h-6" />
-                </div>
-                <h4 className="text-sm font-bold font-heading text-white">🔒 NOT AVAILABLE YET</h4>
-                <p className="text-xs text-neutral-400 font-mono leading-relaxed">
-                  Your Gate Pass will be generated after your payment has been verified by the fest committee.
-                </p>
-                <div className="pt-2">
-                  <span className="text-[10px] font-mono text-neutral-500 block">
-                    Status: {paymentStatus.replace('_', ' ')}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* IF PAYMENT VERIFIED: REAL UNIQUE QR GATE PASS (Section 19) */}
-            {isPaymentVerified && userData.gatePassToken && (
-              <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-black border border-cyan-500/30 text-center space-y-3">
-                  <span className="text-[10px] font-mono uppercase text-cyan-400 tracking-wider block">
-                    Official Festival Gate Pass
-                  </span>
-
-                  {/* Scannable Gate Pass QR */}
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(
-                      (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1'))
-                        ? `${window.location.origin}/gate/verify/${userData.gatePassToken}`
-                        : `https://kl--samyak.web.app/gate/verify/${userData.gatePassToken}`
-                    )}`}
-                    alt="SAMYAK 2026 Gate Pass QR"
-                    className="w-48 h-48 mx-auto bg-white p-3 rounded-2xl object-contain shadow-lg"
-                  />
-
-                  <div className="text-xs font-mono text-white font-bold">
-                    {userData.name}
-                  </div>
-                  <div className="text-[10px] font-mono text-neutral-400">
-                    {userData.studentId} • {userData.college}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setFullGatePassModalOpen(true)}
-                  className="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>View Full Gate Pass</span>
-                </button>
-              </div>
-            )}
-          </div>
+          )}
 
         </div>
 

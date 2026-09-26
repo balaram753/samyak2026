@@ -30,6 +30,7 @@ import AdminLoginPage from './pages/Admin/AdminLoginPage';
 import EventEditorPage from './pages/Admin/EventEditorPage';
 import GateScannerPage from './pages/GateScannerPage';
 import GateVerifyPage from './pages/GateVerifyPage';
+import EnrollPage from './pages/EnrollPage';
 import MaintenancePage from './pages/MaintenancePage';
 import { IS_MAINTENANCE_MODE, fetchEdgeStatus } from './config/maintenanceConfig';
 import { initIntegrityGuard } from './services/integrityGuard';
@@ -155,7 +156,10 @@ export default function App() {
             <Route path="/media" element={<MediaExplorerPage />} />
             <Route path="/media/:eventId" element={<MediaExplorerPage />} />
             <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/payment" element={<PaymentPage />} />
+            {/* /enroll — new registration wizard (primary enrollment entry point) */}
+            <Route path="/enroll" element={<EnrollPage />} />
+            {/* /payment — redirect to /enroll for backward compatibility */}
+            <Route path="/payment" element={<Navigate to="/enroll" replace />} />
             <Route path="/contact" element={<ContactPage />} />
 
             {/* Gate Staff & Security Scanner Routes */}

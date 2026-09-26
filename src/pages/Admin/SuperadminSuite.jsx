@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAdminAuth, SUPER_ADMIN_EMAIL, isSuperAdminEmail } from '../../context/AdminAuthContext';
+import { syncEventStatsFromCollections } from '../../services/registrationService';
 
 const WING_OPTIONS = [
   'All Wings / Depts',
@@ -59,6 +60,7 @@ export default function SuperadminSuite({ onToast }) {
   const [viewMode, setViewMode] = useState('roster'); // 'roster' or 'provision'
   const [adminsList, setAdminsList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncingStats, setSyncingStats] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -246,6 +248,19 @@ Role: ${admin.role}${admin.club ? `\nAssigned Club: ${admin.club}` : ''}`;
     link.click();
     document.body.removeChild(link);
     onToast('Administrators roster exported as CSV successfully!');
+  };
+
+  // Recalculate and Synchronize Live Event Stats
+  const handleSyncStats = async () => {
+    try {
+      setSyncingStats(true);
+      const res = await syncEventStatsFromCollections();
+      onToast(`Live stats synchronized! Enrolled: ${res.totalEnrolled} (${res.internalCount} internal, ${res.externalCount} external, ${res.presentCount} present)`, 'success');
+    } catch (err) {
+      onToast('Failed to sync live stats: ' + err.message, 'error');
+    } finally {
+      setSyncingStats(false);
+    }
   };
 
   // Seed Starter Roster to Firestore
@@ -617,6 +632,17 @@ Role: ${admin.role}${admin.club ? `\nAssigned Club: ${admin.club}` : ''}`;
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleSyncStats}
+                disabled={syncingStats}
+                className="px-5 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-cyan-300 hover:text-white border border-cyan-500/40 text-xs font-mono transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
+                title="Recalculate eventStats/samyak2026 live counters from database collections"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${syncingStats ? 'animate-spin' : ''}`} />
+                <span>{syncingStats ? 'Syncing Stats...' : 'Sync Live Stats'}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleExportCSV}

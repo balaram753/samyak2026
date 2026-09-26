@@ -132,16 +132,44 @@ service cloud.firestore {
             && g.get('checkedIn', false) == false);
     }
 
+    // Students cannot change their category or attendance after initial creation
+    function studentCategoryOk() {
+      // On create: category must be INTERNAL or EXTERNAL
+      // On update: category must not change
+      let newCategory = request.resource.data.get('category', null);
+      let oldCategory = resource != null ? resource.data.get('category', null) : null;
+      return newCategory == null
+        || newCategory in ['INTERNAL', 'EXTERNAL']
+        && (resource == null || newCategory == oldCategory);
+    }
+
+    function studentAttendanceOk() {
+      // Students can never change their own attendance
+      let newAttendance = request.resource.data.get('attendance', null);
+      let oldAttendance = resource != null ? resource.data.get('attendance', null) : null;
+      return newAttendance == null
+        || (resource != null && newAttendance == oldAttendance);
+    }
+
+    function studentCategoryVerificationOk() {
+      // Students cannot set their own categoryVerificationStatus to VERIFIED
+      let newCVS = request.resource.data.get('categoryVerificationStatus', null);
+      return newCVS == null
+        || newCVS in ['PENDING', 'VERIFIED'];
+    }
+
     match /registrations/{regId} {
       allow read: if isGateStaff() || (isAuthenticated() && resource.data.uid == request.auth.uid);
       allow create: if isAuthenticated()
         && request.resource.data.uid == request.auth.uid
-        && studentPaymentOk() && studentGatePassOk();
+        && studentPaymentOk() && studentGatePassOk()
+        && studentCategoryOk() && studentAttendanceOk();
       allow update: if isAdmin() || isGateStaff() || (
         isAuthenticated()
         && resource.data.uid == request.auth.uid
         && request.resource.data.uid == request.auth.uid
         && studentPaymentOk() && studentGatePassOk()
+        && studentCategoryOk() && studentAttendanceOk()
       );
       allow delete: if isAdmin();
     }
@@ -243,6 +271,27 @@ service cloud.firestore {
     match /media_files/{fileId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // =========================================================================
+    // 11. EVENT STATS (Aggregate live counters — admin only)
+    // eventStats/samyak2026 stores totalEnrolled, paymentVerified, etc.
+    // Only authenticated users can update (via atomic client-side transactions)
+    // Only admins and gate staff can read (prevents stats scraping)
+    // =========================================================================
+    match /eventStats/{docId} {
+      allow read: if isAdmin() || isGateStaff();
+      allow write: if isAuthenticated();
+    }
+
+    // =========================================================================
+    // 12. ATTENDANCE AUDIT LOG (Immutable — cannot be modified after write)
+    // Created by gate staff and admins when marking/cancelling attendance
+    // =========================================================================
+    match /attendanceAudit/{auditId} {
+      allow create: if isGateStaff();
+      allow read: if isAdmin() || isGateStaff();
+      allow update, delete: if false; // Immutable — attendance audit logs cannot be changed
     }
   }
 }

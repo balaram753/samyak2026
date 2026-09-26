@@ -13,11 +13,14 @@ import { useSiteContent } from '../../context/SiteContentContext';
 import { uploadImage, uploadReportToR2, isR2Configured } from '../../services/r2Storage';
 import { collection, onSnapshot, query, orderBy, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { listenToEventStats } from '../../services/registrationService';
 import SuperadminSuite from './SuperadminSuite';
 import DepartmentsManager from './DepartmentsManager';
 import PaymentsManager from './PaymentsManager';
 import EventRosterManager from './EventRosterManager';
 import GatePassManager from './GatePassManager';
+import ParticipantsManager from './ParticipantsManager';
+import AttendanceManager from './AttendanceManager';
 
 const EVENT_CATEGORIES = [
   'Technical',
@@ -53,6 +56,8 @@ export default function AdminDashboard() {
     const p = location.pathname.toLowerCase();
     if (p.includes('/gatepasses') || p.includes('/gatepass')) return 'gatepasses';
     if (p.includes('/payments')) return 'payments';
+    if (p.includes('/participants')) return 'participants';
+    if (p.includes('/attendance')) return 'attendance';
     if (p.includes('/rosters') || p.includes('/roster')) return 'rosters';
     if (p.includes('/events')) return 'events';
     if (p.includes('/departments')) return 'departments';
@@ -69,6 +74,8 @@ export default function AdminDashboard() {
       overview: '/samyakadmin/dashboard',
       gatepasses: '/samyakadmin/gatepasses',
       payments: '/samyakadmin/payments',
+      participants: '/samyakadmin/participants',
+      attendance: '/samyakadmin/attendance',
       rosters: '/samyakadmin/rosters',
       events: '/samyakadmin/events',
       departments: '/samyakadmin/departments',
@@ -83,6 +90,9 @@ export default function AdminDashboard() {
 
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState('success');
+
+  // Live eventStats from Firestore (real-time aggregate counters)
+  const [eventStats, setEventStats] = useState(null);
 
   // Gate Passes count state
   const [gatePassesCount, setGatePassesCount] = useState(0);
@@ -119,6 +129,9 @@ export default function AdminDashboard() {
 
   // Fetch payments, event rosters & student registrations from Firestore
   useEffect(() => {
+    // Live eventStats counters
+    const unsubStats = listenToEventStats((data) => setEventStats(data));
+
     try {
       // Payments listener
       const payCol = collection(db, 'payments');
@@ -164,14 +177,17 @@ export default function AdminDashboard() {
       }, () => {});
 
       return () => {
+        if (typeof unsubStats === 'function') unsubStats();
         unsubPay();
         unsubEvReg();
+        unsubGatePasses();
         unsubReg();
         unsubInq();
       };
     } catch (e) {
       console.warn(e);
       setLoadingRegistrations(false);
+      return () => { if (typeof unsubStats === 'function') unsubStats(); };
     }
   }, []);
 
@@ -309,6 +325,20 @@ export default function AdminDashboard() {
             badge={gatePassesCount || null}
           />
           <TabButton 
+            active={activeTab === 'participants'} 
+            onClick={() => handleNavigateTab('participants')} 
+            icon={Users} 
+            label="Participants" 
+            badge={eventStats?.totalEnrolled || null}
+          />
+          <TabButton 
+            active={activeTab === 'attendance'} 
+            onClick={() => handleNavigateTab('attendance')} 
+            icon={UserCheck} 
+            label="Attendance" 
+            badge={eventStats?.presentCount ? `${eventStats.presentCount} PRESENT` : null}
+          />
+          <TabButton 
             active={activeTab === 'events'} 
             onClick={() => handleNavigateTab('events')} 
             icon={Trophy} 
@@ -373,11 +403,15 @@ export default function AdminDashboard() {
           {activeTab === 'overview' && (
             <OverviewSection 
               eventsCount={events.length}
-              studentsCount={studentRegistrations.length}
+              studentsCount={eventStats?.totalEnrolled ?? studentRegistrations.length}
               inquiriesCount={inquiries.length}
-              paymentsCount={paymentsList.length}
-              pendingPaymentsCount={pendingPaymentsCount}
+              paymentsCount={eventStats?.paymentVerified ?? paymentsList.length}
+              pendingPaymentsCount={eventStats?.paymentPending ?? pendingPaymentsCount}
               eventRostersCount={eventRostersCount}
+              internalCount={eventStats?.internalCount ?? null}
+              externalCount={eventStats?.externalCount ?? null}
+              gatePassIssuedCount={eventStats?.gatePassIssued ?? gatePassesCount}
+              presentCount={eventStats?.presentCount ?? null}
               onNavigate={handleNavigateTab}
               onSeedEvents={async () => {
                 try {
@@ -396,6 +430,14 @@ export default function AdminDashboard() {
 
           {activeTab === 'gatepasses' && (
             <GatePassManager onToast={showToast} />
+          )}
+
+          {activeTab === 'participants' && (
+            <ParticipantsManager onToast={showToast} />
+          )}
+
+          {activeTab === 'attendance' && (
+            <AttendanceManager onToast={showToast} />
           )}
 
           {activeTab === 'rosters' && (

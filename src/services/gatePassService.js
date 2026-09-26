@@ -4,6 +4,7 @@ import {
   orderBy, limit 
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { updateEventStats } from './registrationService';
 
 /**
  * Standard Status Enumerations
@@ -21,6 +22,18 @@ export const GATE_PASS_STATUS = {
   NOT_ISSUED: 'NOT_ISSUED',
   ISSUED: 'ISSUED',
   USED: 'USED',
+  CANCELLED: 'CANCELLED',
+};
+
+/** INTERNAL participants do NOT receive gate passes */
+export const PARTICIPANT_CATEGORY = {
+  INTERNAL: 'INTERNAL',
+  EXTERNAL: 'EXTERNAL',
+};
+
+export const ATTENDANCE_STATUS = {
+  NOT_MARKED: 'NOT_MARKED',
+  PRESENT: 'PRESENT',
   CANCELLED: 'CANCELLED',
 };
 
@@ -97,7 +110,55 @@ export async function issueGatePassForRegistration({
   const regSnap = await getDoc(regRef);
   const regData = regSnap.exists() ? regSnap.data() : null;
 
-  // 3. IDEMPOTENCY GUARD: If already issued, return existing pass
+  // 3a. CATEGORY GUARD: Never issue a gate pass for INTERNAL participants
+  const participantCategory = regData?.category || paymentDocData?.category || null;
+  if (participantCategory === PARTICIPANT_CATEGORY.INTERNAL) {
+    // For internal: just verify payment, do NOT issue gate pass
+    if (payRef) {
+      await updateDoc(payRef, {
+        paymentStatus: PAYMENT_STATUS.VERIFIED,
+        status: 'verified',
+        verifiedBy: adminId,
+        updatedAt: serverTimestamp(),
+      }).catch(console.warn);
+    }
+    if (regSnap && regSnap.exists()) {
+      await updateDoc(regRef, {
+        paymentStatus: PAYMENT_STATUS.VERIFIED,
+        isVerified: true,
+        updatedAt: serverTimestamp(),
+      }).catch(console.warn);
+    }
+    try {
+      const mainRegRef = doc(db, 'registrations', effectiveRegId);
+      const mainRegSnap = await getDoc(mainRegRef);
+      if (mainRegSnap.exists()) {
+        await updateDoc(mainRegRef, {
+          'payment.status': PAYMENT_STATUS.VERIFIED,
+          'payment.verifiedAt': serverTimestamp(),
+          'payment.verifiedBy': adminId,
+          updatedAt: serverTimestamp(),
+        });
+      }
+    } catch (e) { console.warn('Internal payment sync note:', e.message); }
+    // Update eventStats: payment verified, no gate pass
+    await updateEventStats({ paymentPending: -1, paymentVerified: 1 }).catch(console.warn);
+    await recordAuditLog({
+      registrationId: effectiveRegId,
+      action: AUDIT_ACTIONS.PAYMENT_VERIFIED,
+      actorId: adminId,
+      details: { category: 'INTERNAL', note: 'No gate pass for internal participants' }
+    });
+    return {
+      success: true,
+      gatePassToken: null,
+      gatePassStatus: 'NOT_REQUIRED',
+      category: PARTICIPANT_CATEGORY.INTERNAL,
+      message: 'Payment verified. KL University internal participant — gate pass not required.',
+    };
+  }
+
+  // 3b. IDEMPOTENCY GUARD: If already issued, return existing pass
   const existingToken = paymentDocData?.gatePassToken || regData?.gatePassToken;
   const existingStatus = paymentDocData?.gatePassStatus || regData?.gatePassStatus;
 
@@ -217,7 +278,10 @@ export async function issueGatePassForRegistration({
     } catch {}
   }
 
-  // 9. Audit Logging
+  // 9. Update eventStats — payment verified + gate pass issued
+  await updateEventStats({ paymentPending: -1, paymentVerified: 1, gatePassIssued: 1 }).catch(console.warn);
+
+  // 10. Audit Logging
   await recordAuditLog({
     registrationId: regNumber,
     action: AUDIT_ACTIONS.PAYMENT_VERIFIED,
@@ -238,6 +302,7 @@ export async function issueGatePassForRegistration({
     gatePassStatus: GATE_PASS_STATUS.ISSUED,
     registrationNumber: regNumber,
     verificationUrl,
+    category: PARTICIPANT_CATEGORY.EXTERNAL,
   };
 }
 
@@ -649,6 +714,16 @@ function processPassRecord(record, token, staffInfo) {
     };
   }
 
+  // Check 1b: Category guard — internal participants should not have gate passes
+  if (record.category === PARTICIPANT_CATEGORY.INTERNAL) {
+    return {
+      isValid: false,
+      status: 'INTERNAL_PARTICIPANT',
+      error: 'This participant is an internal KL University student. Gate pass not required.',
+      data: record,
+    };
+  }
+
   // Check 2: Payment not verified
   if (record.paymentStatus !== PAYMENT_STATUS.VERIFIED) {
     return {
@@ -944,6 +1019,8 @@ export async function saveStaffMember({ uid, email, name, role = STAFF_ROLES.COR
     gatePassScan: true,
     gatePassCheckIn: true,
     allowEntry: true,
+    manageAttendance: role === STAFF_ROLES.SUPER_ADMIN || role === STAFF_ROLES.ADMIN || role === STAFF_ROLES.CORE_TEAM,
+    verifyPayments: role === STAFF_ROLES.SUPER_ADMIN || role === STAFF_ROLES.ADMIN,
     staffManagement: role === STAFF_ROLES.SUPER_ADMIN,
     ...permissions,
   };

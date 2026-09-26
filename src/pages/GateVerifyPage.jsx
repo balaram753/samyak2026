@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { 
   ShieldCheck, XCircle, CheckCircle2, 
   RefreshCw, Camera, AlertOctagon,
-  Lock, ShieldAlert, LogIn, LogOut, Check
+  Lock, ShieldAlert, LogIn, LogOut, Check, School
 } from 'lucide-react';
 import { auth, googleProvider, signInWithPopup, signOut } from '../services/firebase';
 import { 
@@ -547,6 +547,53 @@ export default function GateVerifyPage() {
               className="w-full py-3.5 rounded-2xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-white font-mono text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
             >
               <Camera className="w-4 h-4 text-amber-400" />
+              <span>Scan Next Pass</span>
+            </button>
+          </motion.div>
+        ) : verificationResult?.status === 'INTERNAL_PARTICIPANT' ? (
+          /* INTERNAL KL UNIVERSITY STUDENT SCREEN */
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="p-6 sm:p-8 rounded-3xl border-2 border-cyan-500 bg-[#05141c] text-center space-y-6 shadow-[0_0_60px_rgba(6,182,212,0.35)]"
+          >
+            <div className="w-20 h-20 rounded-full bg-cyan-500/20 border-2 border-cyan-500 text-cyan-400 flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(6,182,212,0.5)]">
+              <School className="w-10 h-10" />
+            </div>
+
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 text-xs font-mono font-bold uppercase tracking-wider">
+                <span>ℹ INTERNAL KL UNIVERSITY STUDENT</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black font-heading text-white">
+                GATE PASS <span className="text-cyan-400">NOT REQUIRED</span>
+              </h2>
+              <p className="text-xs font-mono text-cyan-200/90 max-w-sm mx-auto">
+                This participant is an internal student of KL University. Grant fest entry and attendance using their official KL Student ID Card.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-black/70 border border-cyan-500/40 text-xs font-mono text-left space-y-2">
+              <div className="flex justify-between">
+                <span className="text-neutral-400">Student Name:</span>
+                <span className="font-bold text-white">{pass?.name || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-400">Roll / ID:</span>
+                <span className="font-bold text-cyan-300">{pass?.rollNo || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-400">Institution:</span>
+                <span className="font-bold text-cyan-400">KL University</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => navigate('/gate/scanner')}
+              className="w-full py-3.5 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-black font-mono font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-all"
+            >
+              <Camera className="w-4 h-4 text-black" />
               <span>Scan Next Pass</span>
             </button>
           </motion.div>
