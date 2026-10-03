@@ -6,13 +6,13 @@
  */
 
 // Fest pass fee in rupees (VITE_FEST_FEE), default 349.
-export const FEST_FEE = Number(((typeof import.meta !== 'undefined' && import.meta.env?.VITE_FEST_FEE) || (typeof process !== 'undefined' && process.env?.VITE_FEST_FEE) || '')) || 349;
+export const FEST_FEE = Number(((typeof import.meta !== 'undefined' && import.meta.env?.VITE_FEST_FEE) || (typeof globalThis !== 'undefined' && globalThis.process?.env?.VITE_FEST_FEE) || '')) || 349;
 
 export const PAYMENT_CONFIG = {
   // Real merchant UPI configuration from environment variables with verified fallback (Official SBI)
-  MERCHANT_UPI_ID: ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_MERCHANT_UPI_ID) || (typeof process !== 'undefined' && process.env?.VITE_MERCHANT_UPI_ID) || 'klefsamyak2312@sbi').trim(),
-  MERCHANT_NAME: ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_MERCHANT_NAME) || (typeof process !== 'undefined' && process.env?.VITE_MERCHANT_NAME) || 'K L E F SAMYAK').trim(),
-  CURRENCY: ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_REGISTRATION_CURRENCY) || (typeof process !== 'undefined' && process.env?.VITE_REGISTRATION_CURRENCY) || 'INR').trim(),
+  MERCHANT_UPI_ID: ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_MERCHANT_UPI_ID) || (typeof globalThis !== 'undefined' && globalThis.process?.env?.VITE_MERCHANT_UPI_ID) || 'klefsamyak2312@sbi').trim(),
+  MERCHANT_NAME: ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_MERCHANT_NAME) || (typeof globalThis !== 'undefined' && globalThis.process?.env?.VITE_MERCHANT_NAME) || 'K L E F SAMYAK').trim(),
+  CURRENCY: ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_REGISTRATION_CURRENCY) || (typeof globalThis !== 'undefined' && globalThis.process?.env?.VITE_REGISTRATION_CURRENCY) || 'INR').trim(),
 
   // Authoritative single-time unified pass
   PASS_TIERS: [

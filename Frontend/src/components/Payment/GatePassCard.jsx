@@ -19,6 +19,7 @@ export default function GatePassCard({ passData }) {
     ticketType = 'All-Access Fest Pass',
     gatePassToken = '',
     gatePassStatus = 'ISSUED',
+    gatePassIssuedAt = passData?.gatePassIssuedAt || passData?.issuedAt || null,
     verificationUrl = passData?.verificationUrl || ((typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1'))
       ? `${window.location.origin}/gate/verify/${gatePassToken}` 
       : `https://kl--samyak.web.app/gate/verify/${gatePassToken}`),
