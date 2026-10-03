@@ -294,6 +294,20 @@ export default function MaintenancePage({ customReason, isTampered = false }) {
             className="flex flex-wrap items-center gap-2.5 text-neutral-400"
           >
             <div className="flex items-center gap-1.5">
+              <span className="text-neutral-500 text-[10px] uppercase">UI by</span>
+              <a
+                href="https://udaykiranportfolio.web.app/"
+                target="_blank"
+                rel="noreferrer"
+                className="text-neutral-300 hover:text-sky-300 font-bold hover:underline"
+              >
+                Uday Kiran Vempati
+              </a>
+            </div>
+
+            <span className="text-neutral-700">·</span>
+
+            <div className="flex items-center gap-1.5">
               <span className="text-neutral-500 text-[10px] uppercase">Engineered by</span>
               <a
                 id="samyak-author-link"
@@ -303,20 +317,6 @@ export default function MaintenancePage({ customReason, isTampered = false }) {
                 className="text-red-400 font-bold hover:underline"
               >
                 Balaram (@balaram753)
-              </a>
-            </div>
-
-            <span className="text-neutral-700">·</span>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-neutral-500 text-[10px] uppercase">UI by</span>
-              <a
-                href="https://udaykiranportfolio.web.app/"
-                target="_blank"
-                rel="noreferrer"
-                className="text-neutral-300 hover:text-sky-300 font-bold hover:underline"
-              >
-                Uday Kiran Vempati
               </a>
             </div>
           </div>

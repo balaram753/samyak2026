@@ -361,80 +361,22 @@ export default function EventRegistrationModal({ event, isOpen, onClose, onRegis
                   </div>
                 </div>
 
-                {/* Section & Gender */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400">
-                      Section / Group (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      name="section"
-                      placeholder="e.g. S-14 / CSE-B"
-                      value={formData.section}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2 rounded-xl bg-black border border-neutral-800 text-xs text-white focus:outline-none focus:border-red-500"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400">
-                      Gender (Optional)
-                    </label>
-                    <select
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 rounded-xl bg-black border border-neutral-800 text-xs font-mono text-white focus:outline-none focus:border-red-500"
-                    >
-                      <option value="Prefer not to say">Prefer not to say</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Accommodation Requirement */}
-                <div className="p-3.5 rounded-2xl bg-neutral-900/90 border border-neutral-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-200 font-bold flex items-center gap-1.5">
-                      <span>Do you require Accommodation?</span>
-                    </label>
-                    <span className="text-[10px] text-neutral-400 font-mono">Hostel Stay</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
-                      formData.accommodation === 'no' 
-                        ? 'bg-neutral-800 border-red-500/80 text-white shadow-[0_0_12px_rgba(223,37,49,0.2)]' 
-                        : 'bg-black/50 border-neutral-800 text-neutral-400 hover:border-neutral-700'
-                    }`}>
-                      <input
-                        type="radio"
-                        name="accommodation"
-                        value="no"
-                        checked={formData.accommodation === 'no'}
-                        onChange={handleInputChange}
-                        className="accent-red-500"
-                      />
-                      <span className="text-xs font-mono">No (Self Arranged)</span>
-                    </label>
-                    <label className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
-                      formData.accommodation === 'yes' 
-                        ? 'bg-red-950/40 border-red-500 text-white shadow-[0_0_12px_rgba(223,37,49,0.3)]' 
-                        : 'bg-black/50 border-neutral-800 text-neutral-400 hover:border-neutral-700'
-                    }`}>
-                      <input
-                        type="radio"
-                        name="accommodation"
-                        value="yes"
-                        checked={formData.accommodation === 'yes'}
-                        onChange={handleInputChange}
-                        className="accent-red-500"
-                      />
-                      <span className="text-xs font-mono">Yes (Campus Hostel)</span>
-                    </label>
-                  </div>
+                {/* Gender */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400">
+                    Gender (Optional)
+                  </label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 rounded-xl bg-black border border-neutral-800 text-xs font-mono text-white focus:outline-none focus:border-red-500"
+                  >
+                    <option value="Prefer not to say">Prefer not to say</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
 
                 {/* Submit Action */}
@@ -525,9 +467,9 @@ export default function EventRegistrationModal({ event, isOpen, onClose, onRegis
                   </div>
                 </div>
 
-                {/* Attendee Info & QR */}
-                <div className="grid grid-cols-3 gap-3 items-center">
-                  <div className="col-span-2 space-y-1.5 text-xs font-mono">
+                {/* Attendee Info */}
+                <div className="w-full space-y-2 text-xs font-mono">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <span className="text-neutral-500 text-[10px] uppercase block">Attendee Name</span>
                       <strong className="text-white text-sm">{confirmedTicket.student_name}</strong>
@@ -536,20 +478,10 @@ export default function EventRegistrationModal({ event, isOpen, onClose, onRegis
                       <span className="text-neutral-500 text-[10px] uppercase block">College ID / Roll</span>
                       <span className="text-neutral-200">{confirmedTicket.university_id}</span>
                     </div>
-                    <div>
-                      <span className="text-neutral-500 text-[10px] uppercase block">Department &amp; Year</span>
-                      <span className="text-neutral-300 text-[11px] block truncate">{confirmedTicket.branch} ({confirmedTicket.year})</span>
-                    </div>
                   </div>
-
-                  {/* Dynamic QR Code */}
-                  <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white text-center">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=SAMYAK_ENTRY_${confirmedTicket.ticket_code}_${confirmedTicket.university_id}`}
-                      alt="Ticket Check-in QR"
-                      className="w-18 h-18 object-contain"
-                    />
-                    <span className="text-[8px] font-mono font-bold text-black mt-1 uppercase">Gate Scan</span>
+                  <div className="pt-1 border-t border-neutral-900">
+                    <span className="text-neutral-500 text-[10px] uppercase block">Department &amp; Year</span>
+                    <span className="text-neutral-300 text-[11px] block">{confirmedTicket.branch} ({confirmedTicket.year})</span>
                   </div>
                 </div>
 

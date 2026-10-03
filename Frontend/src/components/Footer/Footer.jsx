@@ -191,18 +191,6 @@ export default function Footer() {
             >
               <span>Designed &amp; Developed by</span>
               <a
-                id="samyak-author-link"
-                href="https://github.com/balaram753"
-                target="_blank"
-                rel="noreferrer"
-                className={`font-semibold hover:underline transition-colors ${
-                  isLight ? 'text-neutral-800 hover:text-red-700' : 'text-neutral-200 hover:text-red-400'
-                }`}
-              >
-                Balaram (@balaram753)
-              </a>
-              <span className={isLight ? 'text-neutral-400' : 'text-neutral-600'}>&amp;</span>
-              <a
                 href="https://udaykiranportfolio.web.app/"
                 target="_blank"
                 rel="noreferrer"
@@ -212,6 +200,18 @@ export default function Footer() {
               >
                 <span>Uday Kiran Vempati</span>
                 <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+              </a>
+              <span className={isLight ? 'text-neutral-400' : 'text-neutral-600'}>&amp;</span>
+              <a
+                id="samyak-author-link"
+                href="https://github.com/balaram753"
+                target="_blank"
+                rel="noreferrer"
+                className={`font-semibold hover:underline transition-colors ${
+                  isLight ? 'text-neutral-800 hover:text-red-700' : 'text-neutral-200 hover:text-red-400'
+                }`}
+              >
+                Balaram (@balaram753)
               </a>
             </div>
 

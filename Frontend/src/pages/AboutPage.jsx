@@ -88,6 +88,43 @@ export default function AboutPage() {
           </h2>
 
           <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Frontend & UI Design */}
+            <div className="p-6 rounded-2xl bg-neutral-900/50 border border-neutral-800 relative">
+              <div className="inline-flex items-center gap-2 text-xs font-mono text-neutral-400 bg-neutral-800/50 px-2.5 py-1 rounded-full border border-neutral-700/50 mb-4">
+                <Layers className="w-3.5 h-3.5" />
+                <span>USER INTERFACE & STYLING</span>
+              </div>
+              <h3 className="text-xl font-bold font-heading text-white">
+                Uday Kiran Vempati
+              </h3>
+              <p className="text-xs font-mono text-neutral-400 mt-0.5">
+                Frontend UI &amp; Visual Experience
+              </p>
+              <div className="mt-4 space-y-2 text-xs font-cyber text-neutral-400 border-t border-neutral-800/80 pt-3">
+                <div className="flex items-start gap-2">
+                  <span className="text-neutral-500">•</span>
+                  <span><strong>Interface Design:</strong> Visual theming, component styling, and UI presentation.</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-neutral-500">•</span>
+                  <span><strong>Page Layouts:</strong> Section wireframes and responsive client-side page views.</span>
+                </div>
+              </div>
+              <div className="mt-5 pt-3 border-t border-neutral-800 flex items-center justify-between">
+                <a
+                  href="https://udaykiranportfolio.web.app/"
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Portfolio"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-neutral-800/80 border border-neutral-700/60 text-xs font-mono text-sky-300 hover:text-white hover:border-sky-500/50 hover:bg-sky-950/40 transition-colors"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>Portfolio</span>
+                </a>
+                <span className="text-[10px] font-mono text-neutral-400 font-semibold bg-neutral-800/60 px-2 py-0.5 rounded border border-neutral-700/40">UI ARCHITECT</span>
+              </div>
+            </div>
+
             {/* Backend & Systems Architecture */}
             <div className="p-6 rounded-2xl bg-neutral-900/80 border border-red-500/40 relative overflow-hidden shadow-xl">
               <div className="flex items-center justify-between mb-4">
@@ -157,43 +194,6 @@ export default function AboutPage() {
                   </a>
                 </div>
                 <span className="text-[10px] font-mono text-red-400/90 font-semibold bg-red-950/40 px-2 py-0.5 rounded border border-red-500/30">LEAD ARCHITECT</span>
-              </div>
-            </div>
-
-            {/* Frontend & UI Design */}
-            <div className="p-6 rounded-2xl bg-neutral-900/50 border border-neutral-800 relative">
-              <div className="inline-flex items-center gap-2 text-xs font-mono text-neutral-400 bg-neutral-800/50 px-2.5 py-1 rounded-full border border-neutral-700/50 mb-4">
-                <Layers className="w-3.5 h-3.5" />
-                <span>USER INTERFACE & STYLING</span>
-              </div>
-              <h3 className="text-xl font-bold font-heading text-white">
-                Uday Kiran Vempati
-              </h3>
-              <p className="text-xs font-mono text-neutral-400 mt-0.5">
-                Frontend UI &amp; Visual Experience
-              </p>
-              <div className="mt-4 space-y-2 text-xs font-cyber text-neutral-400 border-t border-neutral-800/80 pt-3">
-                <div className="flex items-start gap-2">
-                  <span className="text-neutral-500">•</span>
-                  <span><strong>Interface Design:</strong> Visual theming, component styling, and UI presentation.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-neutral-500">•</span>
-                  <span><strong>Page Layouts:</strong> Section wireframes and responsive client-side page views.</span>
-                </div>
-              </div>
-              <div className="mt-5 pt-3 border-t border-neutral-800 flex items-center justify-between">
-                <a
-                  href="https://udaykiranportfolio.web.app/"
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Portfolio"
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-neutral-800/80 border border-neutral-700/60 text-xs font-mono text-sky-300 hover:text-white hover:border-sky-500/50 hover:bg-sky-950/40 transition-colors"
-                >
-                  <Globe className="w-3.5 h-3.5" />
-                  <span>Portfolio</span>
-                </a>
-                <span className="text-[10px] font-mono text-neutral-400 font-semibold bg-neutral-800/60 px-2 py-0.5 rounded border border-neutral-700/40">UI ARCHITECT</span>
               </div>
             </div>
           </div>

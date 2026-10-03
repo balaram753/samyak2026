@@ -476,45 +476,33 @@ export default function EventRegistrationPage() {
                 </div>
               </div>
 
-              {/* Attendee Details & Gate QR */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-center">
-                <div className="sm:col-span-2 space-y-3 text-xs font-mono">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-neutral-500 text-[10px] uppercase block">Registered Attendee</span>
-                      <strong className="text-white text-sm sm:text-base font-bold">{confirmedTicket.student_name}</strong>
-                    </div>
-                    <div>
-                      <span className="text-neutral-500 text-[10px] uppercase block">College / University ID</span>
-                      <span className="text-neutral-200 font-bold">{confirmedTicket.university_id}</span>
-                    </div>
+              {/* Attendee Details */}
+              <div className="w-full space-y-3 text-xs font-mono">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-neutral-500 text-[10px] uppercase block">Registered Attendee</span>
+                    <strong className="text-white text-sm sm:text-base font-bold">{confirmedTicket.student_name}</strong>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3 pt-1 border-t border-neutral-900">
-                    <div>
-                      <span className="text-neutral-500 text-[10px] uppercase block">Email Address</span>
-                      <span className="text-neutral-300 text-[11px] truncate block">{confirmedTicket.email}</span>
-                    </div>
-                    <div>
-                      <span className="text-neutral-500 text-[10px] uppercase block">Contact Phone</span>
-                      <span className="text-neutral-300 text-[11px]">{confirmedTicket.phone}</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-1 border-t border-neutral-900">
-                    <span className="text-neutral-500 text-[10px] uppercase block">Branch &amp; Year</span>
-                    <span className="text-neutral-200">{confirmedTicket.branch} ({confirmedTicket.year})</span>
+                  <div>
+                    <span className="text-neutral-500 text-[10px] uppercase block">College / University ID</span>
+                    <span className="text-neutral-200 font-bold">{confirmedTicket.university_id}</span>
                   </div>
                 </div>
 
-                {/* Gate Scanner QR Code */}
-                <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white text-center shadow-lg">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=SAMYAK_ENTRY_${confirmedTicket.ticket_code}_${confirmedTicket.university_id}`}
-                    alt="Ticket Gate Check-in QR"
-                    className="w-28 h-28 object-contain"
-                  />
-                  <span className="text-[9px] font-mono font-black text-black mt-1 uppercase tracking-wider">Gate Check-in QR</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-neutral-900">
+                  <div>
+                    <span className="text-neutral-500 text-[10px] uppercase block">Email Address</span>
+                    <span className="text-neutral-300 text-[11px] truncate block">{confirmedTicket.email}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-500 text-[10px] uppercase block">Contact Phone</span>
+                    <span className="text-neutral-300 text-[11px]">{confirmedTicket.phone}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-neutral-900">
+                  <span className="text-neutral-500 text-[10px] uppercase block">Branch &amp; Year</span>
+                  <span className="text-neutral-200">{confirmedTicket.branch} ({confirmedTicket.year})</span>
                 </div>
               </div>
 
@@ -852,80 +840,22 @@ export default function EventRegistrationPage() {
                 </div>
               </div>
 
-              {/* Section & Gender */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400">
-                    Section / Group (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    name="section"
-                    placeholder="e.g. S-14 / CSE-B"
-                    value={formData.section}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 rounded-xl bg-black border border-neutral-800 text-xs sm:text-sm text-white focus:outline-none focus:border-red-500 transition-all font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400">
-                    Gender (Optional)
-                  </label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 rounded-xl bg-black border border-neutral-800 text-xs sm:text-sm font-mono text-white focus:outline-none focus:border-red-500 transition-all cursor-pointer"
-                  >
-                    <option value="Prefer not to say">Prefer not to say</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Accommodation Requirement */}
-              <div className="p-4 rounded-2xl bg-neutral-900/90 border border-neutral-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-200 font-bold">
-                    Do you require Accommodation?
-                  </label>
-                  <span className="text-[10px] text-neutral-400 font-mono">Hostel Stay</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                    formData.accommodation === 'no' 
-                      ? 'bg-neutral-800 border-red-500 text-white shadow-[0_0_15px_rgba(223,37,49,0.25)]' 
-                      : 'bg-black/50 border-neutral-800 text-neutral-400 hover:border-neutral-700'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="accommodation"
-                      value="no"
-                      checked={formData.accommodation === 'no'}
-                      onChange={handleInputChange}
-                      className="accent-red-500"
-                    />
-                    <span className="text-xs font-mono">No (Self Arranged)</span>
-                  </label>
-                  <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                    formData.accommodation === 'yes' 
-                      ? 'bg-red-950/50 border-red-500 text-white shadow-[0_0_15px_rgba(223,37,49,0.3)]' 
-                      : 'bg-black/50 border-neutral-800 text-neutral-400 hover:border-neutral-700'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="accommodation"
-                      value="yes"
-                      checked={formData.accommodation === 'yes'}
-                      onChange={handleInputChange}
-                      className="accent-red-500"
-                    />
-                    <span className="text-xs font-mono">Yes (Campus Hostel)</span>
-                  </label>
-                </div>
+              {/* Gender */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-400">
+                  Gender (Optional)
+                </label>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 rounded-xl bg-black border border-neutral-800 text-xs sm:text-sm font-mono text-white focus:outline-none focus:border-red-500 transition-all cursor-pointer"
+                >
+                  <option value="Prefer not to say">Prefer not to say</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
 
               {/* Submit Button */}

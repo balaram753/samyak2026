@@ -230,6 +230,15 @@ export default function App() {
           >
             <span className="text-neutral-500 text-[10px] uppercase tracking-wider">Designed &amp; Developed by</span>
             <a
+              href="https://udaykiranportfolio.web.app/"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-neutral-300 hover:text-red-400 hover:underline transition-colors"
+            >
+              Uday Kiran Vempati
+            </a>
+            <span className="text-neutral-600">&amp;</span>
+            <a
               id="samyak-author-link"
               href="https://github.com/balaram753"
               target="_blank"
@@ -237,15 +246,6 @@ export default function App() {
               className="font-semibold text-neutral-300 hover:text-red-400 hover:underline transition-colors"
             >
               Balaram (@balaram753)
-            </a>
-            <span className="text-neutral-600">&amp;</span>
-            <a
-              href="https://udaykiranportfolio.web.app/"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-neutral-300 hover:text-red-400 hover:underline transition-colors"
-            >
-              Uday Kiran Vempati
             </a>
           </div>
         </footer>

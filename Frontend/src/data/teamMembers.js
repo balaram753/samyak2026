@@ -12,6 +12,15 @@
  */
 export const TEAM_MEMBERS = [
   {
+    id: 'uday-kiran-vempati',
+    name: 'Uday Kiran Vempati',
+    role: 'Frontend UI & Visual Experience',
+    team: 'Platform Architecture',
+    social: {
+      website: 'https://udaykiranportfolio.web.app/',
+    },
+  },
+  {
     id: 'balaram',
     name: 'Balaram',
     role: 'Head of Systems & Backend Architecture',
@@ -22,15 +31,6 @@ export const TEAM_MEMBERS = [
       github: 'https://github.com/balaram753',
       linkedin: 'https://linkedin.com/in/chbalaram',
       website: 'https://balaram.me',
-    },
-  },
-  {
-    id: 'uday-kiran-vempati',
-    name: 'Uday Kiran Vempati',
-    role: 'Frontend UI & Visual Experience',
-    team: 'Platform Architecture',
-    social: {
-      website: 'https://udaykiranportfolio.web.app/',
     },
   },
 ];
