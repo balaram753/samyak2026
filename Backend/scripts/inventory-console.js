@@ -47,7 +47,7 @@
     core_team: 'gate staff', gate_staff: 'gate staff', security: 'gate staff', volunteer: 'gate staff',
   };
   const grants = (role) => ROLE_GRANTS[String(role || '').trim().toLowerCase()] || 'NOTHING (role not recognised)';
-  const keyedOk = (docId, email, kind) => docId === (email || '').toLowerCase() || (!docId.includes('@') && !/^(admin|staff)_/.test(docId));
+  const keyedOk = (docId, email, _kind) => docId === (email || '').toLowerCase() || (!docId.includes('@') && !/^(admin|staff)_/.test(docId));
 
   // 1-3. Admins (roles, id format, legacy PIN fields)
   const admins = await all('admins');

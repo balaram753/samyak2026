@@ -742,8 +742,6 @@ export async function verifyGatePassToken(token, staffInfo = null) {
   const passDocRef = doc(db, 'gate_passes', cleanToken);
   const snap = await getDoc(passDocRef);
 
-  const staffId = staffInfo?.uid || 'staff_scanner';
-
   if (!snap.exists()) {
     // Attempt fallback query by token if docId wasn't token
     const q = query(collection(db, 'gate_passes'), where('gatePassToken', '==', cleanToken));
@@ -957,6 +955,8 @@ export async function checkInGatePass(token, staffInfo) {
       details: {
         ticketType,
         attendeeName,
+        attendeeRoll,
+        attendeeCollege,
       },
     });
 
