@@ -6,7 +6,8 @@ import {
   ShieldCheck, School, Phone, Mail, 
   CreditCard, AlertCircle, ExternalLink, 
   Edit3, Save, X, ZoomIn, ZoomOut, RotateCw,
-  Sparkles, Filter, Calendar, Clock, MapPin, Ban, Trash2
+  Sparkles, Filter, Calendar, Clock, MapPin, Ban, Trash2,
+  ArrowLeft, Ticket
 } from 'lucide-react';
 import { 
   collection, onSnapshot, doc, updateDoc, setDoc, 
@@ -521,17 +522,23 @@ export default function TotalUsersManager({ onToast }) {
     return result;
   }, [consolidatedUsers, searchQuery, enrollmentFilter, categoryFilter, paymentFilter, idCardFilter, attendanceFilter, sortBy]);
 
+  // Keep active inspected user in sync with live data
+  const currentInspectedUser = useMemo(() => {
+    if (!selectedUserModal) return null;
+    return consolidatedUsers.find((u) => u.uid === selectedUserModal.uid) || selectedUserModal;
+  }, [consolidatedUsers, selectedUserModal]);
+
   // Selected user's event registrations for modal inspection
   const currentUserEvents = useMemo(() => {
-    if (!selectedUserModal) return [];
-    const uid = selectedUserModal.uid;
-    const email = (selectedUserModal.email || '').toLowerCase().trim();
+    if (!currentInspectedUser) return [];
+    const uid = currentInspectedUser.uid;
+    const email = (currentInspectedUser.email || '').toLowerCase().trim();
     return eventRegistrationsCollection.filter((r) => {
       if (uid && r.uid === uid) return true;
       if (email && r.email && r.email.toLowerCase().trim() === email) return true;
       return false;
     });
-  }, [selectedUserModal, eventRegistrationsCollection]);
+  }, [currentInspectedUser, eventRegistrationsCollection]);
 
   // 4. Statistics Counts
   const stats = useMemo(() => {
@@ -557,7 +564,7 @@ export default function TotalUsersManager({ onToast }) {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Open modal & prep edit form
+  // Open full-screen verification page & prep edit form
   const handleInspectUser = (user) => {
     setSelectedUserModal(user);
     setIsEditing(false);
@@ -571,7 +578,63 @@ export default function TotalUsersManager({ onToast }) {
     });
     setImgZoom(1);
     setImgRotate(0);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('inspect', user.uid);
+      window.history.pushState({ inspect: user.uid }, '', url.toString());
+    } catch {}
   };
+
+  // Close full-screen verification page
+  const handleCloseInspect = () => {
+    setSelectedUserModal(null);
+    setIsEditing(false);
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('inspect')) {
+        url.searchParams.delete('inspect');
+        window.history.pushState({}, '', url.toString());
+      }
+    } catch {}
+  };
+
+  // Handle browser back button smoothly
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const inspectUid = params.get('inspect');
+        if (inspectUid) {
+          const found = consolidatedUsers.find((u) => u.uid === inspectUid);
+          if (found) {
+            setSelectedUserModal(found);
+            setIsEditing(false);
+            return;
+          }
+        }
+        setSelectedUserModal(null);
+        setIsEditing(false);
+      } catch {}
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [consolidatedUsers]);
+
+  // Check URL param on first load
+  useEffect(() => {
+    if (consolidatedUsers.length > 0 && !selectedUserModal) {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const inspectUid = params.get('inspect');
+        if (inspectUid) {
+          const found = consolidatedUsers.find((u) => u.uid === inspectUid);
+          if (found) {
+            handleInspectUser(found);
+          }
+        }
+      } catch {}
+    }
+  }, [consolidatedUsers]);
 
   // Save edited user profile directly to Firestore
   const handleSaveUserEdits = async () => {
@@ -1188,8 +1251,96 @@ export default function TotalUsersManager({ onToast }) {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-sans">
+          <div>
+            {/* Mobile Cards List (Optimized for phone screens < 1024px) */}
+            <div className="block lg:hidden divide-y divide-neutral-800/80">
+              {filteredUsers.map((user) => {
+                const isPaid = user.paymentStatus === 'VERIFIED' || user.paymentStatus === 'Completed' || user.paymentStatus === 'APPROVED';
+                const isPending = user.paymentStatus === 'PENDING' || user.paymentStatus === 'PENDING_VERIFICATION' || user.paymentStatus === 'PAYMENT_SUBMITTED';
+
+                return (
+                  <div key={user.uid} className="p-4 space-y-3 bg-neutral-900/40 hover:bg-neutral-900/80 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {user.avatarUrl ? (
+                          <img 
+                            src={user.avatarUrl} 
+                            alt={user.name} 
+                            className="w-11 h-11 rounded-full object-cover border border-neutral-700 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-11 h-11 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-neutral-300 font-bold text-base shrink-0">
+                            {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="font-bold text-white text-base truncate flex items-center gap-1.5 font-sans">
+                            {user.name || 'Unnamed Student'}
+                            {user.idVerified && (
+                              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" title="College ID Verified" />
+                            )}
+                          </div>
+                          <div className="text-xs text-neutral-400 truncate flex items-center gap-1 mt-0.5">
+                            <Mail className="w-3 h-3 text-neutral-500 shrink-0" />
+                            <span className="truncate">{user.email || 'No email provided'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase shrink-0 ${
+                        user.isInternal || user.category === 'INTERNAL'
+                          ? 'bg-sky-950 text-sky-400 border border-sky-800' 
+                          : 'bg-amber-950 text-amber-400 border border-amber-800'
+                      }`}>
+                        {user.isInternal || user.category === 'INTERNAL' ? 'KLU' : 'EXTERNAL'}
+                      </span>
+                    </div>
+
+                    {/* Quick Metadata Pills */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
+                      {user.samyakId && (
+                        <span className="px-2 py-0.5 rounded bg-red-950/60 border border-red-500/40 text-red-300 font-bold">
+                          ID: {user.samyakId}
+                        </span>
+                      )}
+                      {user.studentId && (
+                        <span className="px-2 py-0.5 rounded bg-neutral-800 text-neutral-300 border border-neutral-700">
+                          Roll: {user.studentId}
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded font-bold uppercase flex items-center gap-1 ${
+                        isPaid
+                          ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/40'
+                          : isPending
+                          ? 'bg-amber-950/80 text-amber-300 border border-amber-500/40'
+                          : 'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isPaid ? 'bg-emerald-400' : isPending ? 'bg-amber-400' : 'bg-neutral-500'}`} />
+                        {user.paymentStatus || 'UNPAID'}
+                      </span>
+                      {user.enrolledEventsCount > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-red-950 border border-red-500/40 text-red-300 font-bold">
+                          {user.enrolledEventsCount} {user.enrolledEventsCount === 1 ? 'Event' : 'Events'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Full-width Tap to Verify Details button */}
+                    <button
+                      onClick={() => handleInspectUser(user)}
+                      className="w-full py-2.5 px-4 rounded-xl bg-red-600/15 hover:bg-red-600 active:bg-red-700 text-red-300 hover:text-white border border-red-500/40 text-xs font-mono font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-red-400" />
+                      <span>Verify Details</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View (>= 1024px) */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-left text-xs font-sans">
               <thead className="bg-neutral-950/80 border-b border-neutral-800 text-[11px] font-mono text-neutral-400 uppercase tracking-wider">
                 <tr>
                   <th className="py-3.5 px-4">User & Contact</th>
@@ -1407,643 +1558,732 @@ export default function TotalUsersManager({ onToast }) {
               </tbody>
             </table>
           </div>
+          </div>
         )}
       </div>
 
-      {/* 5. Comprehensive User Verification & Details Modal */}
+      {/* 5. Comprehensive Full-Screen User Verification Page (Opens like a dedicated page) */}
       <AnimatePresence>
-        {selectedUserModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-neutral-900 border border-neutral-700/80 rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden"
-            >
-              {/* Modal Top Bar */}
-              <div className="p-5 sm:p-6 bg-neutral-950 border-b border-neutral-800 flex items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  {selectedUserModal.avatarUrl ? (
-                    <img 
-                      src={selectedUserModal.avatarUrl} 
-                      alt="" 
-                      className="w-14 h-14 rounded-2xl object-cover border-2 border-red-500/50 shadow-md flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-2xl bg-neutral-800 border-2 border-neutral-700 flex items-center justify-center text-xl font-bold text-white flex-shrink-0">
-                      {selectedUserModal.name ? selectedUserModal.name.charAt(0).toUpperCase() : 'U'}
-                    </div>
-                  )}
+        {currentInspectedUser && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 15 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 bg-neutral-950 text-white overflow-y-auto flex flex-col font-sans w-full min-h-screen"
+          >
+            {/* Top Sticky Navigation Bar */}
+            <div className="sticky top-0 z-40 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4 shadow-xl">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  onClick={handleCloseInspect}
+                  className="px-3.5 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 active:bg-neutral-700 text-neutral-200 hover:text-white border border-neutral-700 text-xs font-mono font-bold flex items-center gap-2 transition-all cursor-pointer shadow-sm shrink-0"
+                  title="Return to User Registry"
+                >
+                  <ArrowLeft className="w-4 h-4 text-red-500" />
+                  <span className="hidden sm:inline">Back to User List</span>
+                  <span className="sm:hidden">Back</span>
+                </button>
 
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-xl sm:text-2xl font-black text-white font-heading">
-                        {selectedUserModal.name || 'Student Attendee'}
-                      </h3>
-                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase ${
-                        selectedUserModal.isInternal 
-                          ? 'bg-sky-950 text-sky-400 border border-sky-800' 
-                          : 'bg-amber-950 text-amber-400 border border-amber-800'
-                      }`}>
-                        {selectedUserModal.isInternal ? 'KLU INTERNAL' : 'EXTERNAL DELEGATE'}
-                      </span>
-                    </div>
-
-                    <div className="text-xs text-neutral-400 font-mono flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                      <span>Email: <strong className="text-white">{selectedUserModal.email || 'N/A'}</strong></span>
-                      {selectedUserModal.mobile && (
-                        <span>Phone: <strong className="text-white">{selectedUserModal.mobile}</strong></span>
-                      )}
-                      <span>UID: <span className="text-neutral-500 text-[10px]">{selectedUserModal.uid}</span></span>
-                    </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-neutral-400 hidden md:inline">
+                      Admin Console / Users /
+                    </span>
+                    <h2 className="text-sm sm:text-base font-bold text-white truncate font-sans">
+                      {currentInspectedUser.name || 'Student Details'}
+                    </h2>
                   </div>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`text-[10px] sm:text-xs font-mono px-2.5 py-1 rounded-full font-bold uppercase ${
+                  currentInspectedUser.isInternal || currentInspectedUser.category === 'INTERNAL'
+                    ? 'bg-sky-950 text-sky-400 border border-sky-800' 
+                    : 'bg-amber-950 text-amber-400 border border-amber-800'
+                }`}>
+                  {currentInspectedUser.isInternal || currentInspectedUser.category === 'INTERNAL' ? 'KLU INTERNAL' : 'EXTERNAL'}
+                </span>
 
                 <button
-                  onClick={() => setSelectedUserModal(null)}
-                  className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-800 cursor-pointer"
+                  onClick={handleCloseInspect}
+                  className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-800 cursor-pointer transition-colors"
+                  title="Close verification page"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
+            </div>
 
-              {/* Modal Body (Scrollable) */}
-              <div className="p-5 sm:p-6 space-y-6 overflow-y-auto flex-1 font-sans">
-                
-                {/* 1. Quick Verification Banner */}
-                <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-mono">
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-bold">Verification Overview</span>
+            {/* Main Page Content */}
+            <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1">
+              
+              {/* User Hero Banner */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-neutral-900 via-neutral-900/90 to-black border border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-2xl">
+                <div className="flex items-start sm:items-center gap-4">
+                  {currentInspectedUser.avatarUrl ? (
+                    <img 
+                      src={currentInspectedUser.avatarUrl} 
+                      alt={currentInspectedUser.name} 
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-red-500/50 shadow-lg shrink-0"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-neutral-800 border-2 border-neutral-700 flex items-center justify-center text-2xl sm:text-3xl font-bold text-white shrink-0 shadow-lg">
+                      {currentInspectedUser.name ? currentInspectedUser.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+
+                  <div className="space-y-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* ID Card Verification Status */}
-                      <span className={`text-xs px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
-                        selectedUserModal.idVerified 
-                          ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300' 
-                          : 'bg-amber-950/60 border-amber-500/40 text-amber-300'
-                      }`}>
-                        {selectedUserModal.idVerified ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
-                        {selectedUserModal.idVerified ? 'ID Card Verified' : 'ID Card Pending'}
-                      </span>
+                      <h1 className="text-xl sm:text-2xl font-black text-white font-heading tracking-wide">
+                        {currentInspectedUser.name || 'Student Attendee'}
+                      </h1>
+                      {currentInspectedUser.idVerified && (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-emerald-400 text-[10px] font-mono font-bold flex items-center gap-1">
+                          <ShieldCheck className="w-3.5 h-3.5" /> ID Verified
+                        </span>
+                      )}
+                    </div>
 
-                      {/* Category Verification Status */}
-                      <span className={`text-xs px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
-                        selectedUserModal.categoryVerificationStatus === 'VERIFIED'
-                          ? 'bg-sky-950/60 border-sky-500/40 text-sky-300'
-                          : 'bg-amber-950/60 border-amber-500/40 text-amber-300'
-                      }`}>
-                        Category: {selectedUserModal.categoryVerificationStatus || 'PENDING'}
-                      </span>
+                    <div className="text-xs sm:text-sm text-neutral-400 font-mono flex flex-wrap items-center gap-x-4 gap-y-1">
+                      {currentInspectedUser.email && (
+                        <a href={`mailto:${currentInspectedUser.email}`} className="text-neutral-300 hover:text-red-400 flex items-center gap-1">
+                          <Mail className="w-3.5 h-3.5 text-neutral-500" />
+                          <span>{currentInspectedUser.email}</span>
+                        </a>
+                      )}
+                      {currentInspectedUser.mobile && (
+                        <a href={`tel:${currentInspectedUser.mobile}`} className="text-neutral-300 hover:text-red-400 flex items-center gap-1">
+                          <Phone className="w-3.5 h-3.5 text-neutral-500" />
+                          <span>{currentInspectedUser.mobile}</span>
+                        </a>
+                      )}
+                    </div>
 
-                      {/* Payment Status */}
-                      <span className={`text-xs px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
-                        selectedUserModal.paymentStatus === 'VERIFIED'
-                          ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
-                          : 'bg-neutral-800 border-neutral-700 text-neutral-300'
-                      }`}>
-                        Payment: {selectedUserModal.paymentStatus || 'UNPAID'}
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-xs font-mono">
+                      {currentInspectedUser.samyakId && (
+                        <span className="px-2.5 py-0.5 rounded-lg bg-red-950/70 border border-red-500/40 text-red-300 font-bold">
+                          Samyak ID: {currentInspectedUser.samyakId}
+                        </span>
+                      )}
+                      {currentInspectedUser.studentId && (
+                        <span className="px-2.5 py-0.5 rounded-lg bg-neutral-800 text-sky-300 border border-neutral-700 font-bold">
+                          Roll: {currentInspectedUser.studentId}
+                        </span>
+                      )}
+                      <span className="text-[11px] text-neutral-500 truncate">
+                        UID: {currentInspectedUser.uid}
                       </span>
                     </div>
                   </div>
+                </div>
 
-                  {/* Quick Toggle Buttons */}
+                {/* Quick Actions in Hero */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0 border-t border-neutral-800 md:border-t-0 pt-3 md:pt-0">
+                  {currentInspectedUser.idCardUrl && (
+                    <button
+                      onClick={() => handleToggleIdCardVerification(currentInspectedUser)}
+                      disabled={updatingUid === currentInspectedUser.uid}
+                      className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm ${
+                        currentInspectedUser.idVerified
+                          ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-emerald-950/50'
+                      }`}
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>{currentInspectedUser.idVerified ? 'Undo ID Verification' : 'Approve College ID'}</span>
+                    </button>
+                  )}
+
+                  {!isEditing ? (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 text-xs font-mono font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      <span>Edit Profile</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleSaveUserEdits}
+                        disabled={updatingUid === currentInspectedUser.uid}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        <Save className="w-4 h-4" />
+                        <span>Save</span>
+                      </button>
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="px-3 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-400 font-mono text-xs cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 1. Quick Verification Overview Banner */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-neutral-900/90 border border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-4 font-mono shadow-lg">
+                <div className="space-y-1.5">
+                  <span className="text-[10px] uppercase tracking-wider text-neutral-400 font-bold">Verification Overview &amp; Health</span>
                   <div className="flex flex-wrap items-center gap-2">
-                    {selectedUserModal.idCardUrl && (
-                      <button
-                        onClick={() => handleToggleIdCardVerification(selectedUserModal)}
-                        disabled={updatingUid === selectedUserModal.uid}
-                        className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                          selectedUserModal.idVerified 
-                            ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-700' 
-                            : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'
-                        }`}
-                      >
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        {selectedUserModal.idVerified ? 'Undo ID Verification' : 'Verify ID Card'}
-                      </button>
-                    )}
+                    {/* ID Card Verification Status */}
+                    <span className={`text-xs px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
+                      currentInspectedUser.idVerified 
+                        ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300' 
+                        : 'bg-amber-950/60 border-amber-500/40 text-amber-300'
+                    }`}>
+                      {currentInspectedUser.idVerified ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                      {currentInspectedUser.idVerified ? 'College ID Verified' : 'College ID Pending'}
+                    </span>
 
-                    {selectedUserModal.categoryVerificationStatus !== 'VERIFIED' && (
-                      <button
-                        onClick={() => handleApproveCategory(selectedUserModal)}
-                        disabled={updatingUid === selectedUserModal.uid}
-                        className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white border border-sky-500 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        Approve Category
-                      </button>
-                    )}
-                  </div>
-                </div>
+                    {/* Category Verification Status */}
+                    <span className={`text-xs px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
+                      currentInspectedUser.categoryVerificationStatus === 'VERIFIED'
+                        ? 'bg-sky-950/60 border-sky-500/40 text-sky-300'
+                        : 'bg-amber-950/60 border-amber-500/40 text-amber-300'
+                    }`}>
+                      Category: {currentInspectedUser.categoryVerificationStatus || 'PENDING'}
+                    </span>
 
-                {/* 2. Grid: Academic/Personal Info + ID Card Preview */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  
-                  {/* Left Column: Academic Credentials & Edit Mode */}
-                  <div className="bg-neutral-950/70 border border-neutral-800 rounded-xl p-5 space-y-4">
-                    <div className="flex items-center justify-between border-b border-neutral-800/80 pb-3">
-                      <h4 className="font-bold text-white text-sm uppercase font-mono tracking-wider flex items-center gap-2">
-                        <School className="w-4 h-4 text-red-500" />
-                        Academic & Contact Info
-                      </h4>
-
-                      {!isEditing ? (
-                        <button
-                          onClick={() => setIsEditing(true)}
-                          className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700 text-[11px] font-mono flex items-center gap-1 cursor-pointer"
-                        >
-                          <Edit3 className="w-3 h-3" /> Edit
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                          <button
-                            onClick={handleSaveUserEdits}
-                            disabled={updatingUid === selectedUserModal.uid}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 cursor-pointer"
-                          >
-                            <Save className="w-3 h-3" /> Save
-                          </button>
-                          <button
-                            onClick={() => setIsEditing(false)}
-                            className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {!isEditing ? (
-                      <div className="space-y-3 text-xs font-mono">
-                        <div className="flex justify-between py-1.5 border-b border-neutral-800/40">
-                          <span className="text-neutral-500">Student Name:</span>
-                          <span className="text-white font-bold text-right">{selectedUserModal.name || 'N/A'}</span>
-                        </div>
-
-                        <div className="flex justify-between py-1.5 border-b border-neutral-800/40">
-                          <span className="text-neutral-500">Student ID / Roll No:</span>
-                          <span className="text-sky-400 font-bold text-right">{selectedUserModal.studentId || 'N/A'}</span>
-                        </div>
-
-                        <div className="flex justify-between py-1.5 border-b border-neutral-800/40">
-                          <span className="text-neutral-500">Email Address:</span>
-                          <span className="text-white text-right break-all">{selectedUserModal.email || 'N/A'}</span>
-                        </div>
-
-                        <div className="flex justify-between py-1.5 border-b border-neutral-800/40">
-                          <span className="text-neutral-500">Mobile Number:</span>
-                          <span className="text-white font-bold text-right flex items-center gap-2">
-                            {selectedUserModal.mobile || 'N/A'}
-                            {selectedUserModal.mobile && (
-                              <a
-                                href={`tel:${selectedUserModal.mobile}`}
-                                className="text-red-400 hover:underline"
-                                title="Call attendee"
-                              >
-                                📞
-                              </a>
-                            )}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between py-1.5 border-b border-neutral-800/40">
-                          <span className="text-neutral-500">College / University:</span>
-                          <span className="text-white font-bold text-right">{selectedUserModal.college || 'KL University'}</span>
-                        </div>
-
-                        <div className="flex justify-between py-1.5 border-b border-neutral-800/40">
-                          <span className="text-neutral-500">Branch / Department:</span>
-                          <span className="text-white text-right">{selectedUserModal.branch || 'N/A'}</span>
-                        </div>
-
-                        <div className="flex justify-between py-1.5">
-                          <span className="text-neutral-500">Participant Category:</span>
-                          <span className={`font-bold ${selectedUserModal.isInternal ? 'text-sky-400' : 'text-amber-400'}`}>
-                            {selectedUserModal.category || (selectedUserModal.isInternal ? 'INTERNAL' : 'EXTERNAL')}
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Edit Form */
-                      <div className="space-y-3 font-mono text-xs">
-                        <div>
-                          <label className="text-neutral-400 text-[10px] uppercase block mb-1">Full Name</label>
-                          <input
-                            type="text"
-                            value={editForm.name}
-                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                            className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 text-white focus:outline-none focus:border-red-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-neutral-400 text-[10px] uppercase block mb-1">Student ID / Roll No</label>
-                          <input
-                            type="text"
-                            value={editForm.studentId}
-                            onChange={(e) => setEditForm({ ...editForm, studentId: e.target.value })}
-                            className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 text-white focus:outline-none focus:border-red-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-neutral-400 text-[10px] uppercase block mb-1">Mobile Phone</label>
-                          <input
-                            type="text"
-                            value={editForm.mobile}
-                            onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value })}
-                            className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 text-white focus:outline-none focus:border-red-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-neutral-400 text-[10px] uppercase block mb-1">College / University</label>
-                          <input
-                            type="text"
-                            value={editForm.college}
-                            onChange={(e) => setEditForm({ ...editForm, college: e.target.value })}
-                            className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 text-white focus:outline-none focus:border-red-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-neutral-400 text-[10px] uppercase block mb-1">Branch / Dept</label>
-                          <input
-                            type="text"
-                            value={editForm.branch}
-                            onChange={(e) => setEditForm({ ...editForm, branch: e.target.value })}
-                            className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 text-white focus:outline-none focus:border-red-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="text-neutral-400 text-[10px] uppercase block mb-1">Category</label>
-                          <select
-                            value={editForm.category}
-                            onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                            className="w-full px-3 py-2 rounded-lg bg-neutral-900 border border-neutral-700 text-white focus:outline-none focus:border-red-500 cursor-pointer"
-                          >
-                            <option value="INTERNAL">INTERNAL (KLU)</option>
-                            <option value="EXTERNAL">EXTERNAL (Other Universities)</option>
-                          </select>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right Column: College ID Card Inspection */}
-                  <div className="bg-neutral-950/70 border border-neutral-800 rounded-xl p-5 space-y-4 flex flex-col">
-                    <div className="flex items-center justify-between border-b border-neutral-800/80 pb-3">
-                      <h4 className="font-bold text-white text-sm uppercase font-mono tracking-wider flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-red-500" />
-                        Uploaded College ID Card
-                      </h4>
-
-                      {selectedUserModal.idCardUrl && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setImgZoom((z) => Math.max(0.8, z - 0.2))}
-                            className="p-1 rounded bg-neutral-800 text-neutral-300 hover:text-white"
-                            title="Zoom out"
-                          >
-                            <ZoomOut className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setImgZoom((z) => Math.min(2.5, z + 0.2))}
-                            className="p-1 rounded bg-neutral-800 text-neutral-300 hover:text-white"
-                            title="Zoom in"
-                          >
-                            <ZoomIn className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setImgRotate((r) => (r + 90) % 360)}
-                            className="p-1 rounded bg-neutral-800 text-neutral-300 hover:text-white"
-                            title="Rotate 90deg"
-                          >
-                            <RotateCw className="w-3.5 h-3.5" />
-                          </button>
-                          <a
-                            href={selectedUserModal.idCardUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1 rounded bg-neutral-800 text-neutral-300 hover:text-white"
-                            title="Open original high-res image in new tab"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
-                      )}
-                    </div>
-
-                    {selectedUserModal.idCardUrl ? (
-                      <div className="flex-1 flex flex-col items-center justify-center bg-black/60 rounded-xl p-2 border border-neutral-800/80 overflow-hidden min-h-[220px]">
-                        <SecureImage 
-                          src={selectedUserModal.idCardUrl} 
-                          alt="ID Card Proof" 
-                          style={{
-                            transform: `scale(${imgZoom}) rotate(${imgRotate}deg)`,
-                            transition: 'transform 0.2s ease-out'
-                          }}
-                          className="max-h-[240px] max-w-full object-contain rounded"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center bg-neutral-900/40 rounded-xl p-8 border border-dashed border-neutral-800 min-h-[220px] text-center space-y-2">
-                        <CreditCard className="w-10 h-10 text-neutral-600" />
-                        <span className="text-xs text-neutral-400 font-mono">No college ID card has been uploaded.</span>
-                        <span className="text-[10px] text-neutral-500">Student can upload their ID card from profile.</span>
-                      </div>
-                    )}
-
-                    {selectedUserModal.idCardUrl && (
-                      <div className="flex items-center justify-between text-xs font-mono pt-2">
-                        <span className="text-neutral-500 text-[11px]">
-                          Status: <strong className={selectedUserModal.idVerified ? 'text-emerald-400' : 'text-amber-400'}>
-                            {selectedUserModal.idVerified ? 'Verified & Authenticated' : 'Pending Verification'}
-                          </strong>
-                        </span>
-
-                        <button
-                          onClick={() => handleToggleIdCardVerification(selectedUserModal)}
-                          disabled={updatingUid === selectedUserModal.uid}
-                          className={`px-3 py-1.5 rounded-lg font-bold transition-all text-xs cursor-pointer ${
-                            selectedUserModal.idVerified
-                              ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700'
-                              : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                          }`}
-                        >
-                          {selectedUserModal.idVerified ? 'Undo ID Verification' : 'Approve College ID'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* 3. SAMYAK Fest & Pass Details Section */}
-                <div className="bg-neutral-950/70 border border-neutral-800 rounded-xl p-5 space-y-4">
-                  <h4 className="font-bold text-white text-sm uppercase font-mono tracking-wider flex items-center gap-2 border-b border-neutral-800/80 pb-3">
-                    <Sparkles className="w-4 h-4 text-red-500" />
-                    SAMYAK Fest Lifecycle & Gate Pass
-                  </h4>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Block A: Samyak ID */}
-                    <div className="p-4 rounded-xl bg-neutral-900/60 border border-neutral-800 space-y-2">
-                      <span className="text-[10px] uppercase font-mono text-neutral-400 block">Samyak ID / Registration</span>
-                      {selectedUserModal.samyakId ? (
-                        <div className="flex items-center justify-between">
-                          <span className="text-lg font-black text-red-400 font-mono tracking-tight">
-                            {selectedUserModal.samyakId}
-                          </span>
-                          <button
-                            onClick={() => handleCopy(selectedUserModal.samyakId, 'modal_samyak')}
-                            className="p-1 text-neutral-400 hover:text-white"
-                          >
-                            {copiedKey === 'modal_samyak' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <span className="text-xs text-neutral-500 block">Not enrolled in fest</span>
-                          <button
-                            onClick={() => handleGenerateSamyakId(selectedUserModal)}
-                            disabled={updatingUid === selectedUserModal.uid}
-                            className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            Generate Samyak ID
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Block B: Payment & Fee */}
-                    <div className="p-4 rounded-xl bg-neutral-900/60 border border-neutral-800 space-y-2">
-                      <span className="text-[10px] uppercase font-mono text-neutral-400 block">Payment & Fee Status</span>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-sm font-bold font-mono px-2 py-0.5 rounded border ${
-                          selectedUserModal.paymentStatus === 'VERIFIED'
-                            ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
-                            : 'bg-neutral-800 border-neutral-700 text-neutral-300'
-                        }`}>
-                          {selectedUserModal.paymentStatus || 'UNPAID'}
-                        </span>
-
-                        {selectedUserModal.payment?.amount && (
-                          <span className="text-xs font-mono text-neutral-300 font-bold">
-                            ₹{selectedUserModal.payment.amount}
-                          </span>
-                        )}
-                      </div>
-
-                      {selectedUserModal.utrId && (
-                        <div className="text-[11px] font-mono text-neutral-400 flex items-center justify-between">
-                          <span>UTR: <strong className="text-white">{selectedUserModal.utrId}</strong></span>
-                          <button
-                            onClick={() => handleCopy(selectedUserModal.utrId, 'modal_utr')}
-                            className="p-0.5 text-neutral-400 hover:text-white"
-                          >
-                            {copiedKey === 'modal_utr' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Payment verification button */}
-                      {selectedUserModal.paymentStatus !== 'VERIFIED' && (
-                        <button
-                          onClick={() => handleApprovePaymentAndIssuePass(selectedUserModal)}
-                          disabled={updatingUid === selectedUserModal.uid}
-                          className="w-full mt-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          {isKlUniversityStudent(selectedUserModal)
-                            ? 'Approve Payment (KLU Student - No Pass)'
-                            : 'Approve Payment & Issue Pass'}
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Block C: Gate Pass & Check-In */}
-                    <div className="p-4 rounded-xl bg-neutral-900/60 border border-neutral-800 space-y-2">
-                      <span className="text-[10px] uppercase font-mono text-neutral-400 block">Gate Pass &amp; Campus Check-in</span>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded border ${
-                          isKlUniversityStudent(selectedUserModal)
-                            ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
-                            : selectedUserModal.gatePassStatus === 'ISSUED'
-                            ? 'bg-purple-950/60 border-purple-500/40 text-purple-300'
-                            : selectedUserModal.gatePassStatus === 'USED'
-                            ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
-                            : 'bg-neutral-800 border-neutral-700 text-neutral-400'
-                        }`}>
-                          {isKlUniversityStudent(selectedUserModal)
-                            ? 'NOT_REQUIRED (KLU ID)'
-                            : (selectedUserModal.gatePassStatus || 'NOT_ISSUED')}
-                        </span>
-
-                        <button
-                          onClick={() => handleToggleCheckIn(selectedUserModal)}
-                          disabled={updatingUid === selectedUserModal.uid}
-                          className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all cursor-pointer ${
-                            selectedUserModal.checkedIn
-                              ? 'bg-purple-900/40 text-purple-300 border border-purple-500/40 hover:bg-purple-900/80'
-                              : 'bg-neutral-800 hover:bg-neutral-700 text-white'
-                          }`}
-                        >
-                          {selectedUserModal.checkedIn ? '✓ Attended' : 'Mark Present'}
-                        </button>
-                      </div>
-
-                      {isKlUniversityStudent(selectedUserModal) ? (
-                        <p className="text-[10px] text-emerald-400/80 font-mono mt-1">
-                          🎓 KLU Student — Entry verified with physical ID card.
-                        </p>
-                      ) : selectedUserModal.gatePassToken ? (
-                        <div className="text-[10px] font-mono text-neutral-500 truncate">
-                          Token: <span className="text-neutral-300">{selectedUserModal.gatePassToken}</span>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. EVENT REGISTRATIONS & MANAGEMENT (Audio 2 requirement) */}
-                <div className="bg-neutral-950/70 border border-neutral-800 rounded-xl p-5 space-y-4">
-                  <div className="flex items-center justify-between border-b border-neutral-800/80 pb-3">
-                    <h4 className="font-bold text-white text-sm uppercase font-mono tracking-wider flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-red-500" />
-                      Enrolled Competitions &amp; Events ({currentUserEvents.length})
-                    </h4>
-                    <span className="text-[11px] font-mono text-neutral-400">
-                      Cancel wrong registrations to free up seats or restore slots
+                    {/* Payment Status */}
+                    <span className={`text-xs px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
+                      currentInspectedUser.paymentStatus === 'VERIFIED'
+                        ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                        : 'bg-neutral-800 border-neutral-700 text-neutral-300'
+                    }`}>
+                      Payment: {currentInspectedUser.paymentStatus || 'UNPAID'}
                     </span>
                   </div>
+                </div>
 
-                  {currentUserEvents.length === 0 ? (
-                    <div className="p-6 rounded-xl bg-neutral-900/40 border border-dashed border-neutral-800 text-center space-y-1">
-                      <p className="text-xs font-mono text-neutral-400">No event registrations found for this student.</p>
-                      <p className="text-[10px] font-mono text-neutral-500">When the student registers for competitions, they will appear here with cancellation controls.</p>
+                {/* Quick Toggle Buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {currentInspectedUser.categoryVerificationStatus !== 'VERIFIED' && (
+                    <button
+                      onClick={() => handleApproveCategory(currentInspectedUser)}
+                      disabled={updatingUid === currentInspectedUser.uid}
+                      className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white border border-sky-500 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Approve Category
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. Grid: Academic/Personal Info + ID Card Preview */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* Left Column: Academic Credentials & Edit Mode */}
+                <div className="bg-neutral-900/80 border border-neutral-800 rounded-2xl p-5 sm:p-6 space-y-4 shadow-xl">
+                  <div className="flex items-center justify-between border-b border-neutral-800/80 pb-3">
+                    <h4 className="font-bold text-white text-sm uppercase font-mono tracking-wider flex items-center gap-2">
+                      <School className="w-4 h-4 text-red-500" />
+                      Academic &amp; Contact Info
+                    </h4>
+
+                    {!isEditing ? (
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700 text-xs font-mono flex items-center gap-1 cursor-pointer"
+                      >
+                        <Edit3 className="w-3 h-3" /> Edit
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1.5 font-mono text-xs">
+                        <button
+                          onClick={handleSaveUserEdits}
+                          disabled={updatingUid === currentInspectedUser.uid}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Save className="w-3 h-3" /> Save
+                        </button>
+                        <button
+                          onClick={() => setIsEditing(false)}
+                          className="px-2.5 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {!isEditing ? (
+                    <div className="space-y-3.5 text-xs sm:text-sm font-mono">
+                      <div className="flex justify-between items-center py-1.5 border-b border-neutral-800/60">
+                        <span className="text-neutral-400">Student Name:</span>
+                        <span className="text-white font-bold text-right">{currentInspectedUser.name || 'N/A'}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5 border-b border-neutral-800/60">
+                        <span className="text-neutral-400">Student ID / Roll No:</span>
+                        <span className="text-sky-400 font-bold text-right">{currentInspectedUser.studentId || 'N/A'}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5 border-b border-neutral-800/60">
+                        <span className="text-neutral-400">Email Address:</span>
+                        <span className="text-white text-right break-all">{currentInspectedUser.email || 'N/A'}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5 border-b border-neutral-800/60">
+                        <span className="text-neutral-400">Mobile Number:</span>
+                        <span className="text-white font-bold text-right flex items-center gap-2">
+                          {currentInspectedUser.mobile || 'N/A'}
+                          {currentInspectedUser.mobile && (
+                            <a
+                              href={`tel:${currentInspectedUser.mobile}`}
+                              className="text-red-400 hover:underline"
+                              title="Call attendee"
+                            >
+                              📞
+                            </a>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5 border-b border-neutral-800/60">
+                        <span className="text-neutral-400">College / University:</span>
+                        <span className="text-white font-bold text-right">{currentInspectedUser.college || 'KL University'}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5 border-b border-neutral-800/60">
+                        <span className="text-neutral-400">Branch / Department:</span>
+                        <span className="text-white text-right">{currentInspectedUser.branch || 'N/A'}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1.5">
+                        <span className="text-neutral-400">Participant Category:</span>
+                        <span className={`font-bold ${currentInspectedUser.isInternal ? 'text-sky-400' : 'text-amber-400'}`}>
+                          {currentInspectedUser.category || (currentInspectedUser.isInternal ? 'INTERNAL' : 'EXTERNAL')}
+                        </span>
+                      </div>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {currentUserEvents.map((evReg) => {
-                        const isRegCancelled = (evReg.status || '').toLowerCase() === 'cancelled' || evReg.isCancelled === true;
-                        return (
-                          <div 
-                            key={evReg.id}
-                            className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                              isRegCancelled
-                                ? 'bg-red-950/20 border-red-500/30 opacity-75'
-                                : 'bg-neutral-900/60 border-neutral-800'
-                            }`}
-                          >
-                            <div className="space-y-1.5">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-heading font-black text-sm text-white">
-                                  {evReg.event_title || 'SAMYAK Event'}
-                                </span>
-                                {isRegCancelled ? (
-                                  <span className="px-2 py-0.5 rounded-full bg-red-950 border border-red-500/60 text-red-400 text-[10px] font-mono font-bold uppercase flex items-center gap-1">
-                                    <Ban className="w-3 h-3" /> CANCELLED
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/60 text-emerald-400 text-[10px] font-mono font-bold uppercase flex items-center gap-1">
-                                    <CheckCircle2 className="w-3 h-3" /> ACTIVE / ENROLLED
-                                  </span>
-                                )}
-                                {evReg.attendance && (
-                                  <span className="px-2 py-0.5 rounded-full bg-purple-950 border border-purple-500/60 text-purple-300 text-[10px] font-mono font-bold uppercase">
-                                    Gate Checked-In
-                                  </span>
-                                )}
-                              </div>
+                    /* Edit Form */
+                    <div className="space-y-3.5 font-mono text-xs sm:text-sm">
+                      <div>
+                        <label className="text-neutral-400 text-xs uppercase block mb-1">Full Name</label>
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-sm sm:text-base focus:outline-none focus:border-red-500"
+                        />
+                      </div>
 
-                              <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-neutral-400">
-                                {evReg.ticket_code && (
-                                  <span className="text-red-400 font-bold bg-black/60 px-2 py-0.5 rounded border border-red-500/30">
-                                    Pass: {evReg.ticket_code}
-                                  </span>
-                                )}
-                                {(evReg.event_date || evReg.event_time) && (
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3 text-neutral-500" />
-                                    <span>{evReg.event_date} {evReg.event_time}</span>
-                                  </span>
-                                )}
-                                {evReg.event_venue && (
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="w-3 h-3 text-neutral-500" />
-                                    <span>{evReg.event_venue}</span>
-                                  </span>
-                                )}
-                              </div>
+                      <div>
+                        <label className="text-neutral-400 text-xs uppercase block mb-1">Student ID / Roll No</label>
+                        <input
+                          type="text"
+                          value={editForm.studentId}
+                          onChange={(e) => setEditForm({ ...editForm, studentId: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-sm sm:text-base focus:outline-none focus:border-red-500"
+                        />
+                      </div>
 
-                              {isRegCancelled && evReg.cancellation_reason && (
-                                <p className="text-[11px] font-mono text-red-300">
-                                  Reason: {evReg.cancellation_reason}
-                                </p>
-                              )}
-                            </div>
+                      <div>
+                        <label className="text-neutral-400 text-xs uppercase block mb-1">Mobile Phone</label>
+                        <input
+                          type="text"
+                          value={editForm.mobile}
+                          onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-sm sm:text-base focus:outline-none focus:border-red-500"
+                        />
+                      </div>
 
-                            {/* Admin Action Buttons */}
-                            <div className="flex items-center gap-2 shrink-0">
-                              {!isRegCancelled ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAdminCancelEvent(evReg)}
-                                  disabled={updatingUid === evReg.id}
-                                  className="px-3 py-1.5 rounded-lg bg-red-950/80 hover:bg-red-900 border border-red-500/60 text-red-300 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                                  title="Cancel this registration to free up the seat and allow student to register again"
-                                >
-                                  <Ban className="w-3.5 h-3.5" />
-                                  <span>Cancel Registration</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAdminReactivateEvent(evReg)}
-                                  disabled={updatingUid === evReg.id}
-                                  className="px-3 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-300 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                                  title="Restore registration to active"
-                                >
-                                  <RotateCw className="w-3.5 h-3.5" />
-                                  <span>Restore Active</span>
-                                </button>
-                              )}
+                      <div>
+                        <label className="text-neutral-400 text-xs uppercase block mb-1">College / University</label>
+                        <input
+                          type="text"
+                          value={editForm.college}
+                          onChange={(e) => setEditForm({ ...editForm, college: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-sm sm:text-base focus:outline-none focus:border-red-500"
+                        />
+                      </div>
 
-                              <button
-                                type="button"
-                                onClick={() => handleAdminDeleteEvent(evReg)}
-                                disabled={updatingUid === evReg.id}
-                                className="p-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-red-400 border border-neutral-800 transition-colors cursor-pointer"
-                                title="Delete record permanently"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
+                      <div>
+                        <label className="text-neutral-400 text-xs uppercase block mb-1">Branch / Dept</label>
+                        <input
+                          type="text"
+                          value={editForm.branch}
+                          onChange={(e) => setEditForm({ ...editForm, branch: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-sm sm:text-base focus:outline-none focus:border-red-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-neutral-400 text-xs uppercase block mb-1">Category</label>
+                        <select
+                          value={editForm.category}
+                          onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-white text-sm sm:text-base focus:outline-none focus:border-red-500 cursor-pointer"
+                        >
+                          <option value="INTERNAL">INTERNAL (KLU)</option>
+                          <option value="EXTERNAL">EXTERNAL (Other Universities)</option>
+                        </select>
+                      </div>
                     </div>
                   )}
                 </div>
 
+                {/* Right Column: College ID Card Inspection */}
+                <div className="bg-neutral-900/80 border border-neutral-800 rounded-2xl p-5 sm:p-6 space-y-4 flex flex-col shadow-xl">
+                  <div className="flex items-center justify-between border-b border-neutral-800/80 pb-3">
+                    <h4 className="font-bold text-white text-sm uppercase font-mono tracking-wider flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-red-500" />
+                      Uploaded College ID Card
+                    </h4>
+
+                    {currentInspectedUser.idCardUrl && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setImgZoom((z) => Math.max(0.8, z - 0.2))}
+                          className="p-1.5 rounded-lg bg-neutral-800 text-neutral-300 hover:text-white"
+                          title="Zoom out"
+                        >
+                          <ZoomOut className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setImgZoom((z) => Math.min(2.5, z + 0.2))}
+                          className="p-1.5 rounded-lg bg-neutral-800 text-neutral-300 hover:text-white"
+                          title="Zoom in"
+                        >
+                          <ZoomIn className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setImgRotate((r) => (r + 90) % 360)}
+                          className="p-1.5 rounded-lg bg-neutral-800 text-neutral-300 hover:text-white"
+                          title="Rotate 90deg"
+                        >
+                          <RotateCw className="w-4 h-4" />
+                        </button>
+                        <a
+                          href={currentInspectedUser.idCardUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg bg-neutral-800 text-neutral-300 hover:text-white"
+                          title="Open original high-res image in new tab"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {currentInspectedUser.idCardUrl ? (
+                    <div className="flex-1 flex flex-col items-center justify-center bg-black/70 rounded-xl p-3 border border-neutral-800/80 overflow-hidden min-h-[260px]">
+                      <SecureImage 
+                        src={currentInspectedUser.idCardUrl} 
+                        alt="ID Card Proof" 
+                        style={{
+                          transform: `scale(${imgZoom}) rotate(${imgRotate}deg)`,
+                          transition: 'transform 0.2s ease-out'
+                        }}
+                        className="max-h-[300px] max-w-full object-contain rounded-lg"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center bg-neutral-950/40 rounded-xl p-8 border border-dashed border-neutral-800 min-h-[260px] text-center space-y-2">
+                      <CreditCard className="w-12 h-12 text-neutral-600" />
+                      <span className="text-sm text-neutral-400 font-mono">No college ID card has been uploaded.</span>
+                      <span className="text-xs text-neutral-500">Student can upload their ID card from profile.</span>
+                    </div>
+                  )}
+
+                  {currentInspectedUser.idCardUrl && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono pt-2">
+                      <span className="text-neutral-400 text-xs">
+                        Status: <strong className={currentInspectedUser.idVerified ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                          {currentInspectedUser.idVerified ? 'Verified & Authenticated' : 'Pending Verification'}
+                        </strong>
+                      </span>
+
+                      <button
+                        onClick={() => handleToggleIdCardVerification(currentInspectedUser)}
+                        disabled={updatingUid === currentInspectedUser.uid}
+                        className={`w-full sm:w-auto px-4 py-2 rounded-xl font-bold transition-all text-xs cursor-pointer shadow-sm ${
+                          currentInspectedUser.idVerified
+                            ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700'
+                            : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                        }`}
+                      >
+                        {currentInspectedUser.idVerified ? 'Undo ID Verification' : 'Approve College ID'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Modal Bottom Actions */}
-              <div className="p-4 sm:p-5 bg-neutral-950 border-t border-neutral-800 flex items-center justify-between text-xs font-mono">
-                <span className="text-neutral-500">
-                  User ID: <span className="text-neutral-300 font-bold">{selectedUserModal.uid}</span>
-                </span>
+              {/* 3. SAMYAK Fest & Pass Details Section */}
+              <div className="bg-neutral-900/80 border border-neutral-800 rounded-2xl p-5 sm:p-6 space-y-4 shadow-xl">
+                <h4 className="font-bold text-white text-sm uppercase font-mono tracking-wider flex items-center gap-2 border-b border-neutral-800/80 pb-3">
+                  <Sparkles className="w-4 h-4 text-red-500" />
+                  SAMYAK Fest Lifecycle &amp; Gate Pass
+                </h4>
 
-                <button
-                  onClick={() => setSelectedUserModal(null)}
-                  className="px-5 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-bold cursor-pointer transition-colors"
-                >
-                  Close Panel
-                </button>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Block A: Samyak ID */}
+                  <div className="p-4 sm:p-5 rounded-xl bg-neutral-950/70 border border-neutral-800 space-y-2.5">
+                    <span className="text-[10px] uppercase font-mono text-neutral-400 block">Samyak ID / Registration</span>
+                    {currentInspectedUser.samyakId ? (
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg sm:text-xl font-black text-red-400 font-mono tracking-tight">
+                          {currentInspectedUser.samyakId}
+                        </span>
+                        <button
+                          onClick={() => handleCopy(currentInspectedUser.samyakId, 'modal_samyak')}
+                          className="p-1.5 text-neutral-400 hover:text-white rounded-lg bg-neutral-800 hover:bg-neutral-700"
+                        >
+                          {copiedKey === 'modal_samyak' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <span className="text-xs text-neutral-500 block">Not enrolled in fest</span>
+                        <button
+                          onClick={() => handleGenerateSamyakId(currentInspectedUser)}
+                          disabled={updatingUid === currentInspectedUser.uid}
+                          className="w-full px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Generate Samyak ID
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Block B: Payment & Fee */}
+                  <div className="p-4 sm:p-5 rounded-xl bg-neutral-950/70 border border-neutral-800 space-y-2.5">
+                    <span className="text-[10px] uppercase font-mono text-neutral-400 block">Payment &amp; Fee Status</span>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-bold font-mono px-2.5 py-1 rounded-lg border ${
+                        currentInspectedUser.paymentStatus === 'VERIFIED'
+                          ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                          : 'bg-neutral-800 border-neutral-700 text-neutral-300'
+                      }`}>
+                        {currentInspectedUser.paymentStatus || 'UNPAID'}
+                      </span>
+
+                      {currentInspectedUser.payment?.amount && (
+                        <span className="text-sm font-mono text-neutral-300 font-bold">
+                          ₹{currentInspectedUser.payment.amount}
+                        </span>
+                      )}
+                    </div>
+
+                    {currentInspectedUser.utrId && (
+                      <div className="text-xs font-mono text-neutral-400 flex items-center justify-between">
+                        <span>UTR: <strong className="text-white">{currentInspectedUser.utrId}</strong></span>
+                        <button
+                          onClick={() => handleCopy(currentInspectedUser.utrId, 'modal_utr')}
+                          className="p-1 text-neutral-400 hover:text-white"
+                        >
+                          {copiedKey === 'modal_utr' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Payment verification button */}
+                    {currentInspectedUser.paymentStatus !== 'VERIFIED' && (
+                      <button
+                        onClick={() => handleApprovePaymentAndIssuePass(currentInspectedUser)}
+                        disabled={updatingUid === currentInspectedUser.uid}
+                        className="w-full mt-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        {isKlUniversityStudent(currentInspectedUser)
+                          ? 'Approve Payment (KLU Student - No Pass)'
+                          : 'Approve Payment & Issue Pass'}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Block C: Gate Pass & Check-In */}
+                  <div className="p-4 sm:p-5 rounded-xl bg-neutral-950/70 border border-neutral-800 space-y-2.5">
+                    <span className="text-[10px] uppercase font-mono text-neutral-400 block">Gate Pass &amp; Campus Check-in</span>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded border ${
+                        isKlUniversityStudent(currentInspectedUser)
+                          ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                          : currentInspectedUser.gatePassStatus === 'ISSUED'
+                          ? 'bg-purple-950/60 border-purple-500/40 text-purple-300'
+                          : currentInspectedUser.gatePassStatus === 'USED'
+                          ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                          : 'bg-neutral-800 border-neutral-700 text-neutral-400'
+                      }`}>
+                        {isKlUniversityStudent(currentInspectedUser)
+                          ? 'NOT_REQUIRED (KLU ID)'
+                          : (currentInspectedUser.gatePassStatus || 'NOT_ISSUED')}
+                      </span>
+
+                      <button
+                        onClick={() => handleToggleCheckIn(currentInspectedUser)}
+                        disabled={updatingUid === currentInspectedUser.uid}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                          currentInspectedUser.checkedIn
+                            ? 'bg-purple-900/40 text-purple-300 border border-purple-500/40 hover:bg-purple-900/80'
+                            : 'bg-neutral-800 hover:bg-neutral-700 text-white'
+                        }`}
+                      >
+                        {currentInspectedUser.checkedIn ? '✓ Attended' : 'Mark Present'}
+                      </button>
+                    </div>
+
+                    {isKlUniversityStudent(currentInspectedUser) ? (
+                      <p className="text-[10px] text-emerald-400/80 font-mono mt-1">
+                        🎓 KLU Student — Entry verified with physical ID card.
+                      </p>
+                    ) : currentInspectedUser.gatePassToken ? (
+                      <div className="text-[10px] font-mono text-neutral-500 truncate">
+                        Token: <span className="text-neutral-300">{currentInspectedUser.gatePassToken}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-            </motion.div>
-          </div>
+
+              {/* 4. EVENT REGISTRATIONS & MANAGEMENT (Audio 1 & 2 requirements) */}
+              <div className="bg-neutral-900/80 border border-neutral-800 rounded-2xl p-5 sm:p-6 space-y-4 shadow-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-800/80 pb-3">
+                  <div>
+                    <h4 className="font-bold text-white text-base uppercase font-mono tracking-wider flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-red-500" />
+                      Enrolled Competitions &amp; Events ({currentUserEvents.length})
+                    </h4>
+                    <p className="text-xs font-mono text-neutral-400 mt-0.5">
+                      Cancel registrations to immediately restore event seats and free student time-slots.
+                    </p>
+                  </div>
+                </div>
+
+                {currentUserEvents.length === 0 ? (
+                  <div className="p-8 rounded-2xl bg-neutral-950/40 border border-dashed border-neutral-800 text-center space-y-1.5">
+                    <Calendar className="w-10 h-10 text-neutral-600 mx-auto" />
+                    <p className="text-sm font-mono text-neutral-300 font-bold">No registered competitions found for this student.</p>
+                    <p className="text-xs font-mono text-neutral-500">When the student registers for competitions, they will appear here with live seat cancellation and status controls.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3.5">
+                    {currentUserEvents.map((evReg) => {
+                      const isRegCancelled = (evReg.status || '').toLowerCase() === 'cancelled' || evReg.isCancelled === true;
+                      return (
+                        <div 
+                          key={evReg.id}
+                          className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                            isRegCancelled
+                              ? 'bg-red-950/20 border-red-500/30 opacity-75'
+                              : 'bg-neutral-950/70 border-neutral-800 shadow-md'
+                          }`}
+                        >
+                          <div className="space-y-2 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-heading font-black text-base sm:text-lg text-white">
+                                {evReg.event_title || 'SAMYAK Event'}
+                              </span>
+                              {isRegCancelled ? (
+                                <span className="px-2.5 py-0.5 rounded-full bg-red-950 border border-red-500/60 text-red-400 text-xs font-mono font-bold uppercase flex items-center gap-1">
+                                  <Ban className="w-3.5 h-3.5" /> CANCELLED
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/60 text-emerald-400 text-xs font-mono font-bold uppercase flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> ACTIVE / ENROLLED
+                                </span>
+                              )}
+                              {evReg.attendance && (
+                                <span className="px-2.5 py-0.5 rounded-full bg-purple-950 border border-purple-500/60 text-purple-300 text-xs font-mono font-bold uppercase">
+                                  Gate Checked-In
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm font-mono text-neutral-400">
+                              {evReg.ticket_code && (
+                                <span className="text-red-400 font-bold bg-black/60 px-2.5 py-1 rounded-lg border border-red-500/30 flex items-center gap-1.5">
+                                  <Ticket className="w-3.5 h-3.5 text-red-400" />
+                                  <span>Pass: {evReg.ticket_code}</span>
+                                </span>
+                              )}
+                              {(evReg.event_date || evReg.event_time) && (
+                                <span className="flex items-center gap-1.5 bg-neutral-900 px-2.5 py-1 rounded-lg border border-neutral-800">
+                                  <Clock className="w-3.5 h-3.5 text-neutral-400" />
+                                  <span>{evReg.event_date} {evReg.event_time}</span>
+                                </span>
+                              )}
+                              {evReg.event_venue && (
+                                <span className="flex items-center gap-1.5 bg-neutral-900 px-2.5 py-1 rounded-lg border border-neutral-800">
+                                  <MapPin className="w-3.5 h-3.5 text-neutral-400" />
+                                  <span>{evReg.event_venue}</span>
+                                </span>
+                              )}
+                            </div>
+
+                            {isRegCancelled && evReg.cancellation_reason && (
+                              <p className="text-xs font-mono text-red-300 bg-red-950/40 p-2 rounded-lg border border-red-500/20">
+                                Cancellation reason: {evReg.cancellation_reason}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Admin Action Buttons */}
+                          <div className="flex items-center gap-2 shrink-0 border-t border-neutral-800/80 md:border-t-0 pt-3 md:pt-0">
+                            {!isRegCancelled ? (
+                              <button
+                                type="button"
+                                onClick={() => handleAdminCancelEvent(evReg)}
+                                disabled={updatingUid === evReg.id}
+                                className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-500/60 text-red-300 text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                                title="Cancel this registration to free up the seat and allow student to register again"
+                              >
+                                <Ban className="w-4 h-4" />
+                                <span>Cancel Registration</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleAdminReactivateEvent(evReg)}
+                                disabled={updatingUid === evReg.id}
+                                className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-300 text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                                title="Restore registration to active"
+                              >
+                                <RotateCw className="w-4 h-4" />
+                                <span>Restore Active</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleAdminDeleteEvent(evReg)}
+                              disabled={updatingUid === evReg.id}
+                              className="p-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-red-400 border border-neutral-800 transition-colors cursor-pointer"
+                              title="Delete record permanently"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Sticky Mobile Bottom Navigation Bar */}
+            <div className="block sm:hidden sticky bottom-0 z-40 bg-neutral-950/95 backdrop-blur-md border-t border-neutral-800 p-3 shadow-2xl">
+              <button
+                onClick={handleCloseInspect}
+                className="w-full py-3 px-4 rounded-xl bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-mono font-bold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-red-900/40"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to All Users</span>
+              </button>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
