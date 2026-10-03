@@ -3,7 +3,11 @@
  * API key is read from VITE_IMGBB_API_KEY.
  */
 
-const IMGBB_API_KEY = import.meta?.env?.VITE_IMGBB_API_KEY || '';
+const IMGBB_API_KEY = 
+  globalThis.process?.env?.IMGBB_API_KEY ||
+  globalThis.process?.env?.VITE_IMGBB_API_KEY ||
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_IMGBB_API_KEY) ||
+  '';
 
 export async function uploadImageToImgBB(imageFile) {
   try {
