@@ -151,7 +151,7 @@ export default function App() {
     <div className="relative min-h-screen bg-black text-slate-100 selection:bg-red-600 selection:text-white">
       {/* Global Polish Effects */}
       <ScrollToTop />
-      <SmoothScroll />
+      {!isDedicatedAppRoute && <SmoothScroll />}
       {!isDedicatedAppRoute && <ScrollProgress />}
       <CustomCursor />
       <ParticleBackground />

@@ -1584,8 +1584,15 @@ export default function TotalUsersManager({ onToast }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 15 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-neutral-950 text-white overflow-y-auto overscroll-contain flex flex-col font-sans w-full h-[100dvh]"
-            style={{ WebkitOverflowScrolling: 'touch' }}
+            data-lenis-prevent="true"
+            data-lenis-prevent-wheel="true"
+            data-lenis-prevent-touch="true"
+            className="fixed inset-0 z-50 bg-neutral-950 text-white overflow-y-scroll overscroll-contain flex flex-col font-sans w-full h-[100dvh]"
+            style={{ 
+              WebkitOverflowScrolling: 'touch', 
+              overscrollBehavior: 'contain',
+              touchAction: 'pan-y'
+            }}
           >
             {/* Top Sticky Navigation Bar */}
             <div className="sticky top-0 z-40 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4 shadow-xl shrink-0">
