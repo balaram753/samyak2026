@@ -64,38 +64,18 @@ export default function SponsorsSection() {
             </div>
 
             {/* Heading */}
-            <h3 className={`text-2xl sm:text-4xl font-black font-heading tracking-wide uppercase mb-3 ${
+            <h3 className={`text-3xl sm:text-5xl font-black font-heading tracking-wide uppercase mb-3 ${
               isLight ? 'text-slate-900' : 'text-white'
             }`}>
-              PARTNERSHIPS <span className="text-red-600 dark:text-red-500 text-glow-red">COMING SOON</span>
+              COMING <span className="text-red-600 dark:text-red-500 text-glow-red">SOON</span>
             </h3>
 
             {/* Subtitle */}
-            <p className={`text-xs sm:text-sm font-cyber max-w-lg mx-auto leading-relaxed mb-8 ${
+            <p className={`text-xs sm:text-sm font-cyber max-w-lg mx-auto leading-relaxed mb-6 ${
               isLight ? 'text-neutral-600' : 'text-neutral-400'
             }`}>
               Industry leaders, innovation partners, and tech sponsors backing SAMYAK 2026 are currently being onboarded. Official announcements will be revealed here soon.
             </p>
-
-            {/* Decorative Cyber Pod Silhouettes */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-lg mx-auto mb-8">
-              {['Title Partner', 'Tech Ecosystem', 'Cloud Partner', 'Innovation Hub'].map((tier, idx) => (
-                <div key={idx} className="flex flex-col items-center gap-2 group">
-                  <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-dashed flex items-center justify-center transition-all ${
-                    isLight
-                      ? 'border-neutral-300 bg-white/80 text-neutral-400'
-                      : 'border-neutral-800 bg-neutral-900/60 text-neutral-600 group-hover:border-red-500/50 group-hover:text-red-400'
-                  }`}>
-                    <Sparkles className="w-5 h-5 opacity-60 animate-pulse text-red-500" />
-                  </div>
-                  <span className={`text-[10px] font-mono uppercase tracking-wider font-semibold ${
-                    isLight ? 'text-neutral-500' : 'text-neutral-500 group-hover:text-red-400'
-                  }`}>
-                    {tier}
-                  </span>
-                </div>
-              ))}
-            </div>
 
             {/* Become a Partner CTA */}
             <div className="flex items-center justify-center">
