@@ -52,13 +52,14 @@ const UPLOAD_FOLDERS = {
   workshop_qr:            { who: 'content', types: IMAGE_TYPES, maxMb: 5 },
   workshop_payment_qrs:   { who: 'content', types: IMAGE_TYPES, maxMb: 5 },
   workshop_payments:      { who: 'signed-in', types: DOC_TYPES, maxMb: 10 },
+  workshop_payment_proofs:{ who: 'signed-in', types: DOC_TYPES, maxMb: 10 },
 };
 
 // ID cards and payment proofs are never served from the public bucket URL:
 // they go to the PRIVATE_FILES bucket (no public access) and are downloaded
 // through /api/private-files/<key>, which only the uploader, admins and the
 // registrations desk can read.
-const PRIVATE_FOLDERS = ['id_cards', 'payment_proofs', 'payments', 'workshop_payments'];
+const PRIVATE_FOLDERS = ['id_cards', 'payment_proofs', 'payments', 'workshop_payments', 'workshop_payment_proofs'];
 const PRIVATE_PREFIX = '/api/private-files/';
 // Folders the events admin may delete files from (public event content only).
 const CONTENT_FOLDERS = [

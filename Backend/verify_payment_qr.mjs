@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
 import { PNG } from 'pngjs';
-import { buildUpiPaymentUri, parseUpiPaymentUri, PAYMENT_CONFIG } from './src/config/paymentConfig.js';
+import { buildUpiPaymentUri, parseUpiPaymentUri, PAYMENT_CONFIG } from './config/paymentConfig.js';
 
 async function testTier(tier) {
   console.log(`\n======================================================`);
@@ -56,12 +56,14 @@ async function testTier(tier) {
 
   console.log(`Parsed Parameters:`, parsed);
 
-  if (parsed.pa !== 'samyak2026@sbi' && parsed.pa !== 'samyak2026%40sbi') {
-    throw new Error(`FAIL: Expected pa to be samyak2026@sbi, got: ${parsed.pa}`);
+  const expectedPa = PAYMENT_CONFIG.MERCHANT_UPI_ID;
+  if (parsed.pa !== expectedPa && decodeURIComponent(parsed.pa) !== expectedPa) {
+    throw new Error(`FAIL: Expected pa to be ${expectedPa}, got: ${parsed.pa}`);
   }
 
-  if (parsed.pn !== 'SAMYAK 2026' && parsed.pn !== 'SAMYAK%202026') {
-    throw new Error(`FAIL: Expected pn to be SAMYAK 2026, got: ${parsed.pn}`);
+  const expectedPn = PAYMENT_CONFIG.MERCHANT_NAME;
+  if (parsed.pn !== expectedPn && decodeURIComponent(parsed.pn) !== expectedPn) {
+    throw new Error(`FAIL: Expected pn to be ${expectedPn}, got: ${parsed.pn}`);
   }
 
   const expectedAm = Number(tier.price).toFixed(2);

@@ -9,9 +9,9 @@
 export const FEST_FEE = Number(((typeof import.meta !== 'undefined' && import.meta.env?.VITE_FEST_FEE) || (typeof process !== 'undefined' && process.env?.VITE_FEST_FEE) || '')) || 349;
 
 export const PAYMENT_CONFIG = {
-  // Real merchant UPI configuration from environment variables with verified fallback
-  MERCHANT_UPI_ID: ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_MERCHANT_UPI_ID) || (typeof process !== 'undefined' && process.env?.VITE_MERCHANT_UPI_ID) || 'samyak2026@sbi').trim(),
-  MERCHANT_NAME: ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_MERCHANT_NAME) || (typeof process !== 'undefined' && process.env?.VITE_MERCHANT_NAME) || 'SAMYAK 2026').trim(),
+  // Real merchant UPI configuration from environment variables with verified fallback (Official SBI)
+  MERCHANT_UPI_ID: ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_MERCHANT_UPI_ID) || (typeof process !== 'undefined' && process.env?.VITE_MERCHANT_UPI_ID) || 'klefsamyak2312@sbi').trim(),
+  MERCHANT_NAME: ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_MERCHANT_NAME) || (typeof process !== 'undefined' && process.env?.VITE_MERCHANT_NAME) || 'K L E F SAMYAK').trim(),
   CURRENCY: ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_REGISTRATION_CURRENCY) || (typeof process !== 'undefined' && process.env?.VITE_REGISTRATION_CURRENCY) || 'INR').trim(),
 
   // Authoritative single-time unified pass

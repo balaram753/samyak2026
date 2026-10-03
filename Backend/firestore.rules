@@ -364,25 +364,24 @@ service cloud.firestore {
     // create on a student's behalf (legacy migration).
     // =========================================================================
     match /event_registrations/{regId} {
-      allow get: if isAdmin()
-        || (isAuthenticated() && regId.matches('^.+__' + request.auth.uid + '$'));
-      allow list: if isAdmin()
+      allow get: if isAdmin() || isEventsAdmin() || isRegistrationsDesk()
+        || (isAuthenticated() && (resource.data.uid == request.auth.uid || regId.matches('^.+__' + request.auth.uid + '$')));
+      allow list: if isAdmin() || isEventsAdmin() || isRegistrationsDesk()
         || (isAuthenticated() && resource.data.uid == request.auth.uid);
-      allow create: if isAdmin() || (
-        verifiedEmail() != '__no_verified_email__'
+      allow create: if isAdmin() || isEventsAdmin() || (
+        isAuthenticated()
         && request.resource.data.keys().hasAll(['event_id', 'email', 'student_name', 'uid'])
         && request.resource.data.uid == request.auth.uid
         && regId == request.resource.data.event_id + '__' + request.auth.uid
-        && request.resource.data.email == verifiedEmail()
         && request.resource.data.student_name is string
         && request.resource.data.student_name.size() <= 80
         && request.resource.data.attendance == false
       );
-      allow update: if isAdmin() || (
+      allow update: if isAdmin() || isEventsAdmin() || isRegistrationsDesk() || (
         isGateStaff()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendance', 'attended_at'])
       );
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || isEventsAdmin();
     }
 
     // =========================================================================
@@ -426,7 +425,7 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if true;
       allow create, delete: if isEventsAdmin();
-      allow update: if isEventsAdmin() || (
+      allow update: if isEventsAdmin() || isRegistrationsDesk() || (
         isAuthenticated()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registration_count', 'available_seats', 'updated_at'])
         && request.resource.data.registration_count == resource.data.get('registration_count', 0) + 1

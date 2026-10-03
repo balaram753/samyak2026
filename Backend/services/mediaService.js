@@ -13,13 +13,11 @@ import { db } from './firebase.js';
 import { 
   uploadToR2, 
   deleteFromR2, 
-  R2_CONFIG, 
   isR2Configured, 
   listR2EventMedia, 
   listR2EventFolders, 
   listR2EventsWithMedia,
   saveR2Folder,
-  deleteR2Folder,
   deleteR2FolderAll,
   deleteR2EventAll,
   uploadFileToStorage,

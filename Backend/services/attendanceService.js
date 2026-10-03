@@ -14,8 +14,8 @@
  */
 
 import {
-  doc, updateDoc, addDoc, collection, getDoc,
-  runTransaction, serverTimestamp, increment
+  doc, addDoc, collection,
+  runTransaction, serverTimestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { updateEventStats } from './registrationService';
