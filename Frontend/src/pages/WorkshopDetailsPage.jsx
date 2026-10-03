@@ -91,7 +91,11 @@ export default function WorkshopDetailsPage() {
     (formData.customCollegeName && formData.customCollegeName.toLowerCase().includes('kl'))
   );
 
-  const isPaymentVerified = Boolean(userData?.paymentStatus === 'VERIFIED' || userData?.status === 'verified');
+  const isPaymentVerified = Boolean(
+    userData?.isVerifiedByAdmin ||
+    userData?.paymentStatus === 'VERIFIED' ||
+    userData?.status === 'verified'
+  );
   const hasGatePass = Boolean(
     !isKluUser && (
       userData?.gatePassStatus === 'ISSUED' ||

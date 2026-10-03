@@ -35,7 +35,61 @@ export async function checkStudentAlreadyRegistered(eventId) {
     return snap.exists() ? { id: snap.id, ...snap.data() } : null;
   } catch (err) {
     console.warn('Registration lookup note:', err.message);
-    return null;
+  }
+}
+
+/**
+ * Returns whether a student account is registered and verified by the admin committee.
+ */
+export async function checkUserIsAdminVerified(uid) {
+  if (!uid) return false;
+  try {
+    // 1. Check user document in users/{uid}
+    const userSnap = await getDoc(doc(db, 'users', uid));
+    if (userSnap.exists()) {
+      const uData = userSnap.data();
+      if (
+        uData.paymentStatus === 'VERIFIED' ||
+        uData.verified === true ||
+        uData.idVerified === true ||
+        uData.adminVerified === true ||
+        uData.status === 'verified' ||
+        uData.categoryVerificationStatus === 'VERIFIED' ||
+        uData.gatePassStatus === 'ISSUED' ||
+        uData.gatePassStatus === 'NOT_REQUIRED' ||
+        uData.gatePassStatus === 'verified'
+      ) {
+        return true;
+      }
+    }
+
+    // 2. Check registrations collection for uid
+    const regCol = collection(db, 'registrations');
+    const q = query(regCol, where('uid', '==', uid));
+    const regSnap = await getDocs(q);
+    if (!regSnap.empty) {
+      for (const d of regSnap.docs) {
+        const rData = d.data();
+        if (
+          rData.payment?.status === 'VERIFIED' ||
+          rData.payment?.status === 'verified' ||
+          rData.paymentStatus === 'VERIFIED' ||
+          rData.verified === true ||
+          rData.adminVerified === true ||
+          rData.categoryVerificationStatus === 'VERIFIED' ||
+          rData.gatePass?.status === 'ISSUED' ||
+          rData.gatePass?.status === 'NOT_REQUIRED' ||
+          rData.gatePass?.status === 'verified'
+        ) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  } catch (err) {
+    console.warn('Error checking user admin verification:', err.message);
+    return false;
   }
 }
 
@@ -255,7 +309,17 @@ export async function registerStudentForEvent({
   const normalizedUniId = universityId.trim().toUpperCase();
   const normalizedPhone = phone.trim();
 
-  // 1. Strict Duplicate Check (allowed if previously cancelled)
+  // 1. Enforce Admin Verification Check
+  const isVerifiedByAdmin = await checkUserIsAdminVerified(user.uid);
+  if (!isVerifiedByAdmin) {
+    const err = new Error(
+      'Event registration is only allowed for users who are registered and verified by the admin. Your account is currently pending admin verification.'
+    );
+    err.code = 'ADMIN_VERIFICATION_REQUIRED';
+    throw err;
+  }
+
+  // 2. Strict Duplicate Check (allowed if previously cancelled)
   const existingReg = await checkStudentAlreadyRegistered(eventId);
   if (existingReg && existingReg.status !== 'cancelled' && !existingReg.isCancelled) {
     const err = new Error('You are already registered for this event.');
