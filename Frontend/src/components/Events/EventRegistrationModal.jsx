@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Sparkles, CheckCircle2, AlertCircle, Copy, Check, 
@@ -29,7 +30,16 @@ const YEAR_OPTIONS = [
 ];
 
 export default function EventRegistrationModal({ event, isOpen, onClose, onRegistered, existingTicket, allEvents = [] }) {
+  const navigate = useNavigate();
   const { userData, currentUser, loginWithGoogle } = useUser();
+
+  // Redirect to full dedicated page
+  useEffect(() => {
+    if (isOpen && event?.id) {
+      navigate(`/events/${event.id}/register`);
+      if (onClose) onClose();
+    }
+  }, [isOpen, event?.id, navigate, onClose]);
 
   // Pre-fill state detection
   const hasProfileData = Boolean(

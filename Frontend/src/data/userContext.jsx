@@ -134,6 +134,22 @@ export function UserProvider({ children }) {
       checkedInAt: null
     };
 
+    const isVerifiedByAdmin = Boolean(
+      payment?.status === 'VERIFIED' ||
+      payment?.status === 'verified' ||
+      profileDoc?.paymentStatus === 'VERIFIED' ||
+      profileDoc?.verified === true ||
+      profileDoc?.idVerified === true ||
+      profileDoc?.adminVerified === true ||
+      registrationDoc?.verified === true ||
+      registrationDoc?.adminVerified === true ||
+      registrationDoc?.categoryVerificationStatus === 'VERIFIED' ||
+      profileDoc?.categoryVerificationStatus === 'VERIFIED' ||
+      gatePass?.status === 'ISSUED' ||
+      gatePass?.status === 'verified' ||
+      gatePass?.status === 'NOT_REQUIRED'
+    );
+
     return {
       uid: currentUser?.uid || null,
       name,
@@ -150,6 +166,8 @@ export function UserProvider({ children }) {
       avatarUrl,
       profileCompleted,
       isStudentVerified: Boolean(idCardUrl),
+      idVerified: Boolean(profileDoc?.idVerified || profileDoc?.verified),
+      isVerifiedByAdmin,
       registrationId: regId,
       tier,
       passTier: tier,

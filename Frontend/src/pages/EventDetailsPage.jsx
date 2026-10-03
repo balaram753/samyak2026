@@ -11,7 +11,6 @@ import { useSiteContent } from '../context/SiteContentContext';
 import { useUser } from '../data/useUser';
 import { EVENTS_DATA } from '../data/events';
 import { pageVariants } from '../animations/pageAnimations';
-import EventRegistrationModal from '../components/Events/EventRegistrationModal';
 import { 
   listenToEventStats, 
   checkStudentAlreadyRegistered,
@@ -37,8 +36,7 @@ export default function EventDetailsPage() {
   const [lightboxImage, setLightboxImage] = useState(null);
   const { userData } = useUser();
 
-  // New Event Registration modal and real-time stats state
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Registration feedback and real-time stats state
   const [existingTicket, setExistingTicket] = useState(null);
   const [liveStats, setLiveStats] = useState(null);
   const [regFeedback, setRegFeedback] = useState(null);
@@ -632,14 +630,13 @@ export default function EventDetailsPage() {
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     <span>Slot Confirmed ({activeTicket.ticket_code})</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(true)}
-                    className="w-full py-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-white font-mono text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  <Link
+                    to={`/events/${event.id}/register`}
+                    className="w-full py-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-white font-mono text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer text-center"
                   >
                     <QrCode className="w-4 h-4 text-red-400" />
                     <span>View Digital Ticket Pass</span>
-                  </button>
+                  </Link>
                 </div>
               ) : timeConflict.hasConflict ? (
                 <div className="space-y-3">
@@ -710,14 +707,14 @@ export default function EventDetailsPage() {
                       ℹ️ Your previous registration for this event was cancelled. You may re-register below.
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(true)}
-                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:brightness-110 text-white font-heading font-black text-sm uppercase tracking-wider shadow-[0_0_30px_rgba(223,37,49,0.6)] flex items-center justify-center gap-2 transition-all hover:scale-102 active:scale-98 cursor-pointer"
+                  <Link
+                    to={`/events/${event.id}/register`}
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-500 hover:brightness-110 text-white font-heading font-black text-sm uppercase tracking-wider shadow-[0_0_30px_rgba(223,37,49,0.6)] flex items-center justify-center gap-2 transition-all hover:scale-102 active:scale-98 cursor-pointer text-center"
                   >
                     <Sparkles className="w-4 h-4 fill-current" />
                     <span>Register Now ({availableSeats} Seats Left)</span>
-                  </button>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
 
                   <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400 px-1">
                     <Link to="/profile" className="text-red-400 hover:underline">
@@ -869,21 +866,7 @@ export default function EventDetailsPage() {
 
       </div>
 
-      {/* Event Registration & Digital Pass Modal */}
-      <EventRegistrationModal
-        event={event}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        existingTicket={activeTicket}
-        allEvents={allEvents}
-        onRegistered={(newTicket) => {
-          setExistingTicket(newTicket);
-          setRegFeedback({
-            type: 'success',
-            message: 'Successfully registered for this event! Your digital pass is ready below.'
-          });
-        }}
-      />
+
 
       {/* Showcase Image Lightbox */}
       <AnimatePresence>

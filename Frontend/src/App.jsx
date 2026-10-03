@@ -21,6 +21,7 @@ import AboutPage from './pages/AboutPage';
 // Code-Split Routes (Lazy loaded on-demand to keep initial JS bundle ultra-fast)
 const EventsPage = lazy(() => import('./pages/EventsPage'));
 const EventDetailsPage = lazy(() => import('./pages/EventDetailsPage'));
+const EventRegistrationPage = lazy(() => import('./pages/EventRegistrationPage'));
 const WorkshopsPage = lazy(() => import('./pages/WorkshopsPage'));
 const WorkshopDetailsPage = lazy(() => import('./pages/WorkshopDetailsPage'));
 const SchedulePage = lazy(() => import('./pages/SchedulePage'));
@@ -174,6 +175,8 @@ export default function App() {
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/events" element={<EventsPage />} />
                 <Route path="/events/:id" element={<EventDetailsPage />} />
+                <Route path="/events/:id/register" element={<EventRegistrationPage />} />
+                <Route path="/events/:id/pass" element={<EventRegistrationPage />} />
                 <Route path="/workshops" element={<WorkshopsPage />} />
                 <Route path="/workshops/:id" element={<WorkshopDetailsPage />} />
                 <Route path="/schedule" element={<SchedulePage />} />

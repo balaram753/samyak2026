@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, School, 
-  CreditCard, ArrowRight, ShieldCheck,
+  CreditCard, ArrowRight, ArrowLeft, ShieldCheck,
   LogOut, Upload, X, Edit, IdCard,
   Lock, Eye, RefreshCw, Sparkles,
   Calendar, Clock, MapPin, Ban, CheckCircle2, QrCode
@@ -373,6 +373,234 @@ export default function ProfileDashboard() {
   const isPaymentVerified = paymentStatus === 'VERIFIED';
   const isPaymentPending = paymentStatus === 'PENDING_VERIFICATION' || paymentStatus === 'PAYMENT_SUBMITTED';
   const isPaymentRejected = paymentStatus === 'REJECTED';
+
+  // Dedicated Page View: Edit Profile
+  if (showEditForm) {
+    return (
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-6">
+        <button
+          type="button"
+          onClick={() => setShowEditForm(false)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs font-mono text-neutral-300 hover:text-white transition-all cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 text-red-500" />
+          <span>Back to Profile Overview</span>
+        </button>
+
+        <div className="p-8 sm:p-10 rounded-3xl bg-neutral-950 border border-neutral-800 shadow-[0_0_50px_rgba(255,0,60,0.15)] space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-neutral-800">
+            <div>
+              <span className="text-[10px] font-mono uppercase text-red-500 tracking-wider font-bold">
+                Delegate Profile Management
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black font-heading text-white">
+                EDIT PERSONAL DETAILS
+              </h2>
+            </div>
+            <span className="text-[10px] font-mono text-emerald-400">UID: {userData.uid?.slice(0, 10)}...</span>
+          </div>
+
+          <form onSubmit={handleSaveProfile} className="space-y-4">
+            <div>
+              <label className="block text-[11px] font-mono text-white mb-1">Full Name *</label>
+              <input
+                type="text"
+                required
+                placeholder="Enter your full name"
+                value={editForm.name}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-neutral-700 text-xs sm:text-sm font-mono text-white focus:outline-none focus:border-red-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-mono text-neutral-400 mb-1">Email (Google Account)</label>
+              <input
+                type="text"
+                disabled
+                value={userData.email}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-900 border border-neutral-800 text-xs sm:text-sm font-mono text-neutral-400 cursor-not-allowed opacity-80"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-mono text-white mb-1">Student ID / Roll Number *</label>
+              <input
+                type="text"
+                required
+                value={editForm.studentId}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, studentId: e.target.value }))}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-neutral-700 text-xs sm:text-sm font-mono text-white focus:outline-none focus:border-red-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-mono text-white mb-1">Mobile Number *</label>
+              <input
+                type="tel"
+                required
+                value={editForm.mobile}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, mobile: e.target.value }))}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-neutral-700 text-xs sm:text-sm font-mono text-white focus:outline-none focus:border-red-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-mono text-white mb-1">College / University *</label>
+              <select
+                value={collegeChoice}
+                onChange={(e) => handleCollegeChoiceChange(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-neutral-700 text-xs sm:text-sm font-mono text-white focus:outline-none focus:border-red-500 cursor-pointer"
+              >
+                <option value="kl_university" className="bg-neutral-900 text-white">KL University</option>
+                <option value="other" className="bg-neutral-900 text-white">Other</option>
+              </select>
+
+              {collegeChoice === 'other' && (
+                <div className="mt-2.5">
+                  <label className="block text-[10px] font-mono text-red-400 mb-1">
+                    Which college are you from? (College Name) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. SRM University, VIT, etc."
+                    value={otherCollege}
+                    onChange={(e) => handleOtherCollegeChange(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-red-500/60 text-xs sm:text-sm font-mono text-white focus:outline-none focus:border-red-500"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-mono text-neutral-300 mb-1">Branch / Department</label>
+              <input
+                type="text"
+                value={editForm.branch}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, branch: e.target.value }))}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-black border border-neutral-700 text-xs sm:text-sm font-mono text-white focus:outline-none focus:border-red-500"
+              />
+            </div>
+
+            {profileError && (
+              <p className="text-xs font-mono text-red-400">{profileError}</p>
+            )}
+            {profileSuccess && (
+              <p className="text-xs font-mono text-emerald-400">{profileSuccess}</p>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-800">
+              <button
+                type="button"
+                onClick={() => setShowEditForm(false)}
+                className="px-5 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-mono text-neutral-300 cursor-pointer transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-heading font-black uppercase tracking-wider transition-all cursor-pointer shadow-lg disabled:opacity-50"
+              >
+                {savingProfile ? 'Saving...' : 'Save Profile Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Dedicated Page View: Full Gate Pass View
+  if (fullGatePassModalOpen && isPaymentVerified && userData.gatePassToken) {
+    return (
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-6">
+        <button
+          type="button"
+          onClick={() => setFullGatePassModalOpen(false)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs font-mono text-neutral-300 hover:text-white transition-all cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 text-red-500" />
+          <span>Back to Profile Overview</span>
+        </button>
+
+        <GatePassCard
+          registrationNumber={userData.registrationId}
+          name={userData.name}
+          ticketType={userData.tier}
+          gatePassToken={userData.gatePassToken}
+          gatePassStatus={userData.gatePassStatus}
+        />
+      </div>
+    );
+  }
+
+  // Dedicated Page View: Uploaded ID Card
+  if (idCardModalOpen && userData.idCardUrl) {
+    return (
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-6">
+        <button
+          type="button"
+          onClick={() => setIdCardModalOpen(false)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs font-mono text-neutral-300 hover:text-white transition-all cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 text-red-500" />
+          <span>Back to Profile Overview</span>
+        </button>
+
+        <div className="p-6 sm:p-8 rounded-3xl bg-neutral-950 border border-neutral-800 shadow-2xl space-y-4">
+          <div className="pb-3 border-b border-neutral-800 flex items-center justify-between">
+            <h2 className="text-base font-bold font-heading text-white uppercase tracking-wider">
+              Uploaded College ID Card
+            </h2>
+            <span className="text-[10px] font-mono text-emerald-400">On Record</span>
+          </div>
+          <div className="rounded-2xl overflow-hidden bg-black flex items-center justify-center p-3 border border-neutral-800">
+            <SecureImage
+              src={userData.idCardUrl}
+              alt="Student College ID"
+              className="max-h-[75vh] w-auto object-contain rounded-xl"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Dedicated Page View: Submitted Payment Screenshot
+  if (paymentScreenshotModalOpen && userData.payment?.screenshotUrl) {
+    return (
+      <div className="relative max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-6">
+        <button
+          type="button"
+          onClick={() => setPaymentScreenshotModalOpen(false)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs font-mono text-neutral-300 hover:text-white transition-all cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 text-red-500" />
+          <span>Back to Profile Overview</span>
+        </button>
+
+        <div className="p-6 sm:p-8 rounded-3xl bg-neutral-950 border border-neutral-800 shadow-2xl space-y-4">
+          <div className="pb-3 border-b border-neutral-800 flex items-center justify-between">
+            <h2 className="text-base font-bold font-heading text-white uppercase tracking-wider">
+              Submitted Payment Screenshot
+            </h2>
+            <span className="text-[10px] font-mono text-cyan-400">
+              UTR: {userData.payment?.utr ? maskUtr(userData.payment.utr) : 'Verified'}
+            </span>
+          </div>
+          <div className="rounded-2xl overflow-hidden bg-black flex items-center justify-center p-3 border border-neutral-800">
+            <SecureImage
+              src={userData.payment.screenshotUrl}
+              alt="Payment Confirmation Screenshot"
+              className="max-h-[75vh] w-auto object-contain rounded-xl"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-8">
@@ -889,235 +1117,6 @@ export default function ProfileDashboard() {
         </div>
 
       </div>
-
-      {/* EDIT PROFILE MODAL */}
-      <AnimatePresence>
-        {showEditForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative max-w-lg w-full p-6 sm:p-8 rounded-3xl bg-neutral-950 border border-neutral-800 shadow-2xl space-y-5"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
-                <h3 className="text-base font-bold font-heading text-white uppercase tracking-wider">
-                  Edit Personal Details
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowEditForm(false)}
-                  className="p-1 rounded-lg text-neutral-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveProfile} className="space-y-4">
-                <div>
-                  <label className="block text-[11px] font-mono text-white mb-1">Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter your full name"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3.5 py-2 rounded-xl bg-black border border-neutral-700 text-xs font-mono text-white focus:outline-none focus:border-red-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-mono text-neutral-400 mb-1">Email (Google Account)</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={userData.email}
-                    className="w-full px-3.5 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-xs font-mono text-neutral-400 cursor-not-allowed opacity-80"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-mono text-white mb-1">Student ID / Roll Number *</label>
-                  <input
-                    type="text"
-                    required
-                    value={editForm.studentId}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, studentId: e.target.value }))}
-                    className="w-full px-3.5 py-2 rounded-xl bg-black border border-neutral-700 text-xs font-mono text-white focus:outline-none focus:border-red-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-mono text-white mb-1">Mobile Number *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={editForm.mobile}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, mobile: e.target.value }))}
-                    className="w-full px-3.5 py-2 rounded-xl bg-black border border-neutral-700 text-xs font-mono text-white focus:outline-none focus:border-red-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-mono text-white mb-1">College / University *</label>
-                  <select
-                    value={collegeChoice}
-                    onChange={(e) => handleCollegeChoiceChange(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl bg-black border border-neutral-700 text-xs font-mono text-white focus:outline-none focus:border-red-500 cursor-pointer"
-                  >
-                    <option value="kl_university" className="bg-neutral-900 text-white">KL University</option>
-                    <option value="other" className="bg-neutral-900 text-white">Other</option>
-                  </select>
-
-                  {collegeChoice === 'other' && (
-                    <div className="mt-2.5">
-                      <label className="block text-[10px] font-mono text-red-400 mb-1">
-                        Which college are you from? (College Name) *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. SRM University, VIT, etc."
-                        value={otherCollege}
-                        onChange={(e) => handleOtherCollegeChange(e.target.value)}
-                        className="w-full px-3.5 py-2 rounded-xl bg-neutral-950 border border-red-500/60 text-xs font-mono text-white focus:outline-none focus:border-red-500"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-mono text-neutral-300 mb-1">Branch / Department</label>
-                  <input
-                    type="text"
-                    value={editForm.branch}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, branch: e.target.value }))}
-                    className="w-full px-3.5 py-2 rounded-xl bg-black border border-neutral-700 text-xs font-mono text-white focus:outline-none focus:border-red-500"
-                  />
-                </div>
-
-                {profileError && (
-                  <p className="text-xs font-mono text-red-400">{profileError}</p>
-                )}
-                {profileSuccess && (
-                  <p className="text-xs font-mono text-emerald-400">{profileSuccess}</p>
-                )}
-
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowEditForm(false)}
-                    className="px-4 py-2 rounded-xl bg-neutral-900 text-xs font-mono text-neutral-300"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingProfile}
-                    className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-mono font-bold"
-                  >
-                    {savingProfile ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* VIEW ID CARD MODAL */}
-      <AnimatePresence>
-        {idCardModalOpen && userData.idCardUrl && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative max-w-xl w-full p-4 rounded-3xl bg-neutral-950 border border-neutral-800 space-y-4"
-            >
-              <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-                <span className="text-xs font-mono text-white font-bold">Uploaded College ID Card</span>
-                <button
-                  type="button"
-                  onClick={() => setIdCardModalOpen(false)}
-                  className="p-1 rounded-lg text-neutral-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="rounded-2xl overflow-hidden bg-black max-h-[70vh] flex items-center justify-center">
-                <SecureImage
-                  src={userData.idCardUrl}
-                  alt="Student College ID"
-                  className="max-h-[65vh] w-auto object-contain rounded-xl"
-                />
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* VIEW PAYMENT SCREENSHOT MODAL */}
-      <AnimatePresence>
-        {paymentScreenshotModalOpen && userData.payment?.screenshotUrl && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative max-w-xl w-full p-4 rounded-3xl bg-neutral-950 border border-neutral-800 space-y-4"
-            >
-              <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
-                <span className="text-xs font-mono text-white font-bold">Submitted Payment Screenshot</span>
-                <button
-                  type="button"
-                  onClick={() => setPaymentScreenshotModalOpen(false)}
-                  className="p-1 rounded-lg text-neutral-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="rounded-2xl overflow-hidden bg-black max-h-[70vh] flex items-center justify-center">
-                <SecureImage
-                  src={userData.payment.screenshotUrl}
-                  alt="Payment Confirmation Screenshot"
-                  className="max-h-[65vh] w-auto object-contain rounded-xl"
-                />
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* FULL GATE PASS MODAL */}
-      <AnimatePresence>
-        {fullGatePassModalOpen && isPaymentVerified && userData.gatePassToken && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            >
-              <button
-                type="button"
-                onClick={() => setFullGatePassModalOpen(false)}
-                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-neutral-900/80 border border-neutral-700 text-neutral-300 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              <GatePassCard
-                registrationNumber={userData.registrationId}
-                name={userData.name}
-                ticketType={userData.tier}
-                gatePassToken={userData.gatePassToken}
-                gatePassStatus={userData.gatePassStatus}
-              />
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
     </div>
   );
