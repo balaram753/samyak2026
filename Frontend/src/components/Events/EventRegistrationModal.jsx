@@ -28,7 +28,7 @@ const YEAR_OPTIONS = [
   'Postgraduate (M.Tech / MBA / MCA / PhD)'
 ];
 
-export default function EventRegistrationModal({ event, isOpen, onClose, onRegistered, existingTicket }) {
+export default function EventRegistrationModal({ event, isOpen, onClose, onRegistered, existingTicket, allEvents = [] }) {
   const { userData, currentUser, loginWithGoogle } = useUser();
 
   // Pre-fill state detection
@@ -134,6 +134,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose, onRegis
         section: formData.section,
         gender: formData.gender,
         accommodation: formData.accommodation,
+        allEvents: allEvents,
       });
 
       setConfirmedTicket(res.registration);

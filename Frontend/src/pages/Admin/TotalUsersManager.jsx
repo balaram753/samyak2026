@@ -6,7 +6,7 @@ import {
   ShieldCheck, School, Phone, Mail, 
   CreditCard, AlertCircle, ExternalLink, 
   Edit3, Save, X, ZoomIn, ZoomOut, RotateCw,
-  Sparkles, Filter
+  Sparkles, Filter, Calendar, Clock, MapPin, Ban, Trash2
 } from 'lucide-react';
 import { 
   collection, onSnapshot, doc, updateDoc, setDoc, 
@@ -18,6 +18,11 @@ import {
   recordAuditLog,
   isKlUniversityStudent
 } from '../../services/gatePassService';
+import { 
+  cancelEventRegistration, 
+  reactivateEventRegistration, 
+  deleteEventRegistration 
+} from '../../services/eventRegistrationService';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { exportUsersToExcel } from '../../services/excelExportService';
 import SecureImage from '../../components/SecureImage/SecureImage';
@@ -31,6 +36,7 @@ export default function TotalUsersManager({ onToast }) {
   const [registrationsCollection, setRegistrationsCollection] = useState([]);
   const [studentRegistrationsCollection, setStudentRegistrationsCollection] = useState([]);
   const [paymentsCollection, setPaymentsCollection] = useState([]);
+  const [eventRegistrationsCollection, setEventRegistrationsCollection] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Search & Filter state
@@ -70,6 +76,7 @@ export default function TotalUsersManager({ onToast }) {
     let unsubReg = () => {};
     let unsubStReg = () => {};
     let unsubPay = () => {};
+    let unsubEvReg = () => {};
 
     try {
       // 1. Users collection
@@ -103,6 +110,13 @@ export default function TotalUsersManager({ onToast }) {
         console.warn('Payments listener notice:', err);
         setLoading(false);
       });
+
+      // 5. Event Registrations collection
+      unsubEvReg = onSnapshot(collection(db, 'event_registrations'), (snap) => {
+        const list = [];
+        snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+        setEventRegistrationsCollection(list);
+      }, (err) => console.warn('Event Registrations listener notice:', err));
     } catch (e) {
       console.warn('Listeners init notice:', e);
       setLoading(false);
@@ -113,6 +127,7 @@ export default function TotalUsersManager({ onToast }) {
       unsubReg();
       unsubStReg();
       unsubPay();
+      unsubEvReg();
     };
   }, []);
 
@@ -378,8 +393,36 @@ export default function TotalUsersManager({ onToast }) {
       }
     });
 
+    // Step E: Enrich with actual event registrations from 'event_registrations'
+    eventRegistrationsCollection.forEach((ev) => {
+      let matchedKey = null;
+      if (ev.uid && userMap.has(ev.uid)) {
+        matchedKey = ev.uid;
+      } else if (ev.email) {
+        const evEmail = ev.email.toLowerCase().trim();
+        for (const [k, u] of userMap.entries()) {
+          if (u.email && u.email.toLowerCase().trim() === evEmail) {
+            matchedKey = k;
+            break;
+          }
+        }
+      }
+
+      if (matchedKey) {
+        const u = userMap.get(matchedKey);
+        const list = u.enrolledEventsList || [];
+        if (!list.some((item) => item.id === ev.id)) {
+          list.push(ev);
+        }
+        u.enrolledEventsList = list;
+        u.enrolledEventsCount = list.filter(
+          (x) => (x.status || '').toLowerCase() !== 'cancelled' && !x.isCancelled
+        ).length;
+      }
+    });
+
     return Array.from(userMap.values());
-  }, [usersCollection, registrationsCollection, studentRegistrationsCollection, paymentsCollection]);
+  }, [usersCollection, registrationsCollection, studentRegistrationsCollection, paymentsCollection, eventRegistrationsCollection]);
 
   // 3. Search & Filter Filtering
   const filteredUsers = useMemo(() => {
@@ -477,6 +520,18 @@ export default function TotalUsersManager({ onToast }) {
 
     return result;
   }, [consolidatedUsers, searchQuery, enrollmentFilter, categoryFilter, paymentFilter, idCardFilter, attendanceFilter, sortBy]);
+
+  // Selected user's event registrations for modal inspection
+  const currentUserEvents = useMemo(() => {
+    if (!selectedUserModal) return [];
+    const uid = selectedUserModal.uid;
+    const email = (selectedUserModal.email || '').toLowerCase().trim();
+    return eventRegistrationsCollection.filter((r) => {
+      if (uid && r.uid === uid) return true;
+      if (email && r.email && r.email.toLowerCase().trim() === email) return true;
+      return false;
+    });
+  }, [selectedUserModal, eventRegistrationsCollection]);
 
   // 4. Statistics Counts
   const stats = useMemo(() => {
@@ -578,6 +633,57 @@ export default function TotalUsersManager({ onToast }) {
     } catch (err) {
       console.error('Failed to update user:', err);
       if (onToast) onToast('Failed to save changes: ' + err.message, 'error');
+    } finally {
+      setUpdatingUid(null);
+    }
+  };
+
+  // Admin cancel user event registration (frees seat & slot)
+  const handleAdminCancelEvent = async (reg) => {
+    const studentName = selectedUserModal?.name || 'Student';
+    const confirmMsg = `Cancel ${studentName}'s registration for "${reg.event_title}"?\n\nThis will mark the registration as CANCELLED, restore the seat for the event, and allow the student to register again or choose another event in this time slot.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setUpdatingUid(reg.id);
+      await cancelEventRegistration(
+        reg.id, 
+        `Cancelled by admin (${adminUser?.email || 'admin'}) from Users Console`, 
+        adminUser?.email || 'admin'
+      );
+      if (onToast) onToast(`Registration for "${reg.event_title}" cancelled. Seat restored and slot unlocked!`, 'success');
+    } catch (err) {
+      console.error('Cancel event error:', err);
+      if (onToast) onToast('Failed to cancel event registration: ' + err.message, 'error');
+    } finally {
+      setUpdatingUid(null);
+    }
+  };
+
+  // Admin reactivate user event registration
+  const handleAdminReactivateEvent = async (reg) => {
+    try {
+      setUpdatingUid(reg.id);
+      await reactivateEventRegistration(reg.id, adminUser?.email || 'admin');
+      if (onToast) onToast(`Registration for "${reg.event_title}" restored to ACTIVE!`, 'success');
+    } catch (err) {
+      console.error('Reactivate event error:', err);
+      if (onToast) onToast('Failed to restore event registration: ' + err.message, 'error');
+    } finally {
+      setUpdatingUid(null);
+    }
+  };
+
+  // Admin delete registration record permanently
+  const handleAdminDeleteEvent = async (reg) => {
+    if (!window.confirm(`Permanently delete the registration record for "${reg.event_title}"?`)) return;
+    try {
+      setUpdatingUid(reg.id);
+      await deleteEventRegistration(reg.id);
+      if (onToast) onToast('Registration record deleted.', 'info');
+    } catch (err) {
+      console.error('Delete event error:', err);
+      if (onToast) onToast('Failed to delete event registration: ' + err.message, 'error');
     } finally {
       setUpdatingUid(null);
     }
@@ -1164,6 +1270,18 @@ export default function TotalUsersManager({ onToast }) {
                           <span className="inline-block px-2 py-0.5 rounded text-[10px] bg-neutral-800 text-neutral-400 border border-neutral-700">
                             Not Enrolled
                           </span>
+                        )}
+                        {user.enrolledEventsCount > 0 && (
+                          <div className="mt-1">
+                            <span 
+                              onClick={() => handleInspectUser(user)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-950/80 hover:bg-red-900 border border-red-500/50 text-[10px] font-mono text-red-300 font-bold cursor-pointer transition-colors"
+                              title="Click to inspect and manage registered events"
+                            >
+                              <Calendar className="w-2.5 h-2.5 text-red-400" />
+                              <span>{user.enrolledEventsCount} {user.enrolledEventsCount === 1 ? 'Event' : 'Events'}</span>
+                            </span>
+                          </div>
                         )}
                       </td>
 
@@ -1786,6 +1904,127 @@ export default function TotalUsersManager({ onToast }) {
                       ) : null}
                     </div>
                   </div>
+                </div>
+
+                {/* 4. EVENT REGISTRATIONS & MANAGEMENT (Audio 2 requirement) */}
+                <div className="bg-neutral-950/70 border border-neutral-800 rounded-xl p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-neutral-800/80 pb-3">
+                    <h4 className="font-bold text-white text-sm uppercase font-mono tracking-wider flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-red-500" />
+                      Enrolled Competitions &amp; Events ({currentUserEvents.length})
+                    </h4>
+                    <span className="text-[11px] font-mono text-neutral-400">
+                      Cancel wrong registrations to free up seats or restore slots
+                    </span>
+                  </div>
+
+                  {currentUserEvents.length === 0 ? (
+                    <div className="p-6 rounded-xl bg-neutral-900/40 border border-dashed border-neutral-800 text-center space-y-1">
+                      <p className="text-xs font-mono text-neutral-400">No event registrations found for this student.</p>
+                      <p className="text-[10px] font-mono text-neutral-500">When the student registers for competitions, they will appear here with cancellation controls.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {currentUserEvents.map((evReg) => {
+                        const isRegCancelled = (evReg.status || '').toLowerCase() === 'cancelled' || evReg.isCancelled === true;
+                        return (
+                          <div 
+                            key={evReg.id}
+                            className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                              isRegCancelled
+                                ? 'bg-red-950/20 border-red-500/30 opacity-75'
+                                : 'bg-neutral-900/60 border-neutral-800'
+                            }`}
+                          >
+                            <div className="space-y-1.5">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-heading font-black text-sm text-white">
+                                  {evReg.event_title || 'SAMYAK Event'}
+                                </span>
+                                {isRegCancelled ? (
+                                  <span className="px-2 py-0.5 rounded-full bg-red-950 border border-red-500/60 text-red-400 text-[10px] font-mono font-bold uppercase flex items-center gap-1">
+                                    <Ban className="w-3 h-3" /> CANCELLED
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/60 text-emerald-400 text-[10px] font-mono font-bold uppercase flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3" /> ACTIVE / ENROLLED
+                                  </span>
+                                )}
+                                {evReg.attendance && (
+                                  <span className="px-2 py-0.5 rounded-full bg-purple-950 border border-purple-500/60 text-purple-300 text-[10px] font-mono font-bold uppercase">
+                                    Gate Checked-In
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-neutral-400">
+                                {evReg.ticket_code && (
+                                  <span className="text-red-400 font-bold bg-black/60 px-2 py-0.5 rounded border border-red-500/30">
+                                    Pass: {evReg.ticket_code}
+                                  </span>
+                                )}
+                                {(evReg.event_date || evReg.event_time) && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3 text-neutral-500" />
+                                    <span>{evReg.event_date} {evReg.event_time}</span>
+                                  </span>
+                                )}
+                                {evReg.event_venue && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="w-3 h-3 text-neutral-500" />
+                                    <span>{evReg.event_venue}</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              {isRegCancelled && evReg.cancellation_reason && (
+                                <p className="text-[11px] font-mono text-red-300">
+                                  Reason: {evReg.cancellation_reason}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Admin Action Buttons */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              {!isRegCancelled ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdminCancelEvent(evReg)}
+                                  disabled={updatingUid === evReg.id}
+                                  className="px-3 py-1.5 rounded-lg bg-red-950/80 hover:bg-red-900 border border-red-500/60 text-red-300 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                                  title="Cancel this registration to free up the seat and allow student to register again"
+                                >
+                                  <Ban className="w-3.5 h-3.5" />
+                                  <span>Cancel Registration</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAdminReactivateEvent(evReg)}
+                                  disabled={updatingUid === evReg.id}
+                                  className="px-3 py-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/60 text-emerald-300 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                                  title="Restore registration to active"
+                                >
+                                  <RotateCw className="w-3.5 h-3.5" />
+                                  <span>Restore Active</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => handleAdminDeleteEvent(evReg)}
+                                disabled={updatingUid === evReg.id}
+                                className="p-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-red-400 border border-neutral-800 transition-colors cursor-pointer"
+                                title="Delete record permanently"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
               </div>

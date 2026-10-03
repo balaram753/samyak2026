@@ -12,7 +12,12 @@ import { useUser } from '../data/useUser';
 import { EVENTS_DATA } from '../data/events';
 import { pageVariants } from '../animations/pageAnimations';
 import EventRegistrationModal from '../components/Events/EventRegistrationModal';
-import { listenToEventStats, checkStudentAlreadyRegistered } from '../services/eventRegistrationService';
+import { 
+  listenToEventStats, 
+  checkStudentAlreadyRegistered,
+  listenToUserRegistrations,
+  checkUserTimeSlotConflictSync 
+} from '../services/eventRegistrationService';
 
 export default function EventDetailsPage() {
   const { id } = useParams();
@@ -37,6 +42,7 @@ export default function EventDetailsPage() {
   const [existingTicket, setExistingTicket] = useState(null);
   const [liveStats, setLiveStats] = useState(null);
   const [regFeedback, setRegFeedback] = useState(null);
+  const [userRegistrations, setUserRegistrations] = useState([]);
 
   // 1. Live seat stats listener
   useEffect(() => {
@@ -47,12 +53,25 @@ export default function EventDetailsPage() {
     return () => unsub();
   }, [event?.id]);
 
-  // 2. Check if student already has a digital ticket registration in Firestore
+  // 2. Real-time listener for current user's event registrations
+  useEffect(() => {
+    const uid = userData?.uid;
+    if (!uid) {
+      setUserRegistrations([]);
+      return;
+    }
+    const unsub = listenToUserRegistrations(uid, (regs) => {
+      setUserRegistrations(regs);
+    });
+    return () => unsub();
+  }, [userData?.uid]);
+
+  // 3. Check if student already has a digital ticket registration in Firestore
   useEffect(() => {
     if (!event?.id) return;
     let isMounted = true;
     const checkUser = async () => {
-      if (userData?.email || userData?.rollNo) {
+      if (userData?.email || userData?.rollNo || userData?.uid) {
         const ticket = await checkStudentAlreadyRegistered(event.id);
         if (isMounted && ticket) {
           setExistingTicket(ticket);
@@ -61,7 +80,7 @@ export default function EventDetailsPage() {
     };
     checkUser();
     return () => { isMounted = false; };
-  }, [event?.id, userData?.email, userData?.rollNo]);
+  }, [event?.id, userData?.email, userData?.rollNo, userData?.uid]);
 
   // Real-time capacity & enrollment metrics
   const capacity = Number(liveStats?.capacity ?? event?.capacity ?? 100);
@@ -123,15 +142,29 @@ export default function EventDetailsPage() {
     }).slice(0, 6);
   }, [sameTimeEvents, allEvents, event]);
 
-  const isAlreadyRegistered = useMemo(() => {
-    if (existingTicket) return true;
-    if (!event) return false;
-    return Boolean(
-      userData?.registeredEvents?.some(
-        (e) => e.id === event.id || e.title?.toLowerCase() === event.title?.toLowerCase()
-      )
-    );
-  }, [existingTicket, userData?.registeredEvents, event]);
+  // Current user's registration for THIS event
+  const myRegDoc = useMemo(() => {
+    if (!event?.id) return existingTicket || null;
+    const found = userRegistrations.find((r) => r.event_id === event.id);
+    return found || existingTicket || null;
+  }, [event?.id, userRegistrations, existingTicket]);
+
+  const isRegistrationCancelled = Boolean(
+    myRegDoc && (
+      (myRegDoc.status || '').toLowerCase() === 'cancelled' || 
+      myRegDoc.isCancelled === true
+    )
+  );
+
+  const activeTicket = myRegDoc && !isRegistrationCancelled ? myRegDoc : null;
+
+  // Real-time time slot conflict check with OTHER active registered events
+  const timeConflict = useMemo(() => {
+    if (!event || activeTicket) return { hasConflict: false, conflictingEvent: null };
+    return checkUserTimeSlotConflictSync(event, userRegistrations, allEvents);
+  }, [event, activeTicket, userRegistrations, allEvents]);
+
+  const isAlreadyRegistered = Boolean(activeTicket);
 
   if (!event) {
     return (
@@ -593,11 +626,11 @@ export default function EventDetailsPage() {
                     </a>
                   </div>
                 </div>
-              ) : existingTicket ? (
+              ) : activeTicket ? (
                 <div className="space-y-2.5">
                   <div className="w-full py-3 px-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/60 text-emerald-300 font-heading font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.3)]">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Slot Confirmed ({existingTicket.ticket_code})</span>
+                    <span>Slot Confirmed ({activeTicket.ticket_code})</span>
                   </div>
                   <button
                     type="button"
@@ -606,6 +639,42 @@ export default function EventDetailsPage() {
                   >
                     <QrCode className="w-4 h-4 text-red-400" />
                     <span>View Digital Ticket Pass</span>
+                  </button>
+                </div>
+              ) : timeConflict.hasConflict ? (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-2xl bg-amber-950/60 border-2 border-amber-500/80 text-amber-200 space-y-2 shadow-[0_0_25px_rgba(245,158,11,0.2)]">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                      <span className="font-heading font-black text-xs uppercase tracking-wider text-amber-300">
+                        Time Slot Conflict
+                      </span>
+                    </div>
+                    <p className="text-xs font-cyber leading-relaxed text-amber-100 font-bold">
+                      You are already registered for &quot;{timeConflict.conflictingEvent?.title || timeConflict.conflictingEvent?.event_title}&quot; at this time ({timeConflict.conflictingEvent?.time || timeConflict.conflictingEvent?.event_time}).
+                    </p>
+                    <p className="text-[11px] font-mono text-neutral-400 leading-normal">
+                      Per fest regulations, overlapping event enrollments are restricted. If that event is cancelled or deregistered by administrators, this slot will automatically open.
+                    </p>
+                    {timeConflict.conflictingEvent?.event_id && (
+                      <div className="pt-1">
+                        <Link
+                          to={`/events/${timeConflict.conflictingEvent.event_id}`}
+                          className="inline-flex items-center gap-1.5 text-[11px] font-mono text-amber-400 hover:underline"
+                        >
+                          <span>View Enrolled Event &rarr;</span>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full py-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 text-neutral-500 font-heading font-black text-xs uppercase tracking-wider cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <Ban className="w-4 h-4 text-neutral-600" />
+                    <span>Slot Blocked (Time Conflict)</span>
                   </button>
                 </div>
               ) : isFull ? (
@@ -636,6 +705,11 @@ export default function EventDetailsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {isRegistrationCancelled && (
+                    <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/50 text-[11px] font-mono text-amber-300">
+                      ℹ️ Your previous registration for this event was cancelled. You may re-register below.
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(true)}
@@ -800,7 +874,8 @@ export default function EventDetailsPage() {
         event={event}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        existingTicket={existingTicket}
+        existingTicket={activeTicket}
+        allEvents={allEvents}
         onRegistered={(newTicket) => {
           setExistingTicket(newTicket);
           setRegFeedback({

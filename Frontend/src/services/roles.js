@@ -42,8 +42,8 @@ export function isActiveRecord(data) {
 export function allowedAdminTabs(role, isSuperAdmin) {
   const key = roleKey(role);
   if (isSuperAdmin || ADMIN_ROLES.includes(key)) return 'all';
-  if (REGISTRATIONS_DESK_ROLES.includes(key)) return ['payments', 'gatepasses', 'users'];
-  if (EVENTS_ADMIN_ROLES.includes(key)) return ['events', 'departments', 'sponsors', 'about', 'schedule', 'workshops'];
+  if (REGISTRATIONS_DESK_ROLES.includes(key)) return ['payments', 'gatepasses', 'users', 'rosters'];
+  if (EVENTS_ADMIN_ROLES.includes(key)) return ['events', 'departments', 'sponsors', 'about', 'schedule', 'workshops', 'rosters'];
   if (CLUB_ROLES.includes(key)) return ['techclub'];
   return [];
 }

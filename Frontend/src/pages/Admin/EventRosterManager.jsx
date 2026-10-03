@@ -3,16 +3,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, Search, CheckCircle2, Clock, Download, 
   Copy, Check, UserCheck, RefreshCw, Calendar, 
-  School, Award, Trash2
+  School, Award, Trash2, Ban, RotateCw, AlertTriangle
 } from 'lucide-react';
 import { useSiteContent } from '../../context/SiteContentContext';
+import { useAdminAuth } from '../../context/AdminAuthContext';
 import { 
   listenToEventRoster, 
   toggleAttendance, 
-  exportRosterToCSV 
+  exportRosterToCSV,
+  cancelEventRegistration,
+  reactivateEventRegistration,
+  deleteEventRegistration
 } from '../../services/eventRegistrationService';
-import { doc, deleteDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
 
 const BRANCH_LIST = [
   'All Branches',
@@ -38,12 +40,14 @@ const YEAR_LIST = [
 
 export default function EventRosterManager({ onToast }) {
   const { events } = useSiteContent();
+  const { adminUser } = useAdminAuth();
   const [selectedEventId, setSelectedEventId] = useState('all');
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [branchFilter, setBranchFilter] = useState('All Branches');
   const [yearFilter, setYearFilter] = useState('All Years');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'cancelled'
   const [attendanceFilter, setAttendanceFilter] = useState('all'); // 'all' | 'attended' | 'pending'
   const [togglingId, setTogglingId] = useState(null);
   const [copiedCode, setCopiedCode] = useState(null);
@@ -87,21 +91,60 @@ export default function EventRosterManager({ onToast }) {
     }
   };
 
-  const handleDeleteRegistration = async (regId) => {
-    if (!window.confirm('Are you sure you want to delete this event registration record?')) return;
+  const handleCancelRegistration = async (reg) => {
+    const confirmMsg = `Cancel registration for ${reg.student_name} (${reg.event_title})?\n\nThis will mark the registration as cancelled and restore the event's seat count, allowing the student to register again or choose another event in this time slot.`;
+    if (!window.confirm(confirmMsg)) return;
+
     try {
-      await deleteDoc(doc(db, 'event_registrations', regId));
+      setTogglingId(reg.id);
+      await cancelEventRegistration(
+        reg.id,
+        'Cancelled by admin from Event Roster',
+        adminUser?.email || 'admin'
+      );
+      if (onToast) onToast(`Registration for ${reg.student_name} cancelled and seat restored!`, 'success');
+    } catch (err) {
+      if (onToast) onToast('Failed to cancel registration: ' + err.message, 'error');
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const handleReactivateRegistration = async (reg) => {
+    try {
+      setTogglingId(reg.id);
+      await reactivateEventRegistration(reg.id, adminUser?.email || 'admin');
+      if (onToast) onToast(`Registration for ${reg.student_name} restored to ACTIVE!`, 'success');
+    } catch (err) {
+      if (onToast) onToast('Failed to reactivate: ' + err.message, 'error');
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const handleDeleteRegistration = async (reg) => {
+    if (!window.confirm(`Are you sure you want to permanently delete the registration record for ${reg.student_name}?`)) return;
+    try {
+      setTogglingId(reg.id);
+      await deleteEventRegistration(reg.id);
       if (onToast) onToast('Registration record deleted.');
     } catch (err) {
       if (onToast) onToast('Failed to delete: ' + err.message, 'error');
+    } finally {
+      setTogglingId(null);
     }
   };
 
   // Filtered Roster
   const filteredRoster = useMemo(() => {
     return roster.filter((r) => {
-      // Event filter is handled by Firestore query, but double-check
+      // Event filter
       if (selectedEventId !== 'all' && r.event_id !== selectedEventId) return false;
+
+      // Status filter
+      const isCancelled = (r.status || '').toLowerCase() === 'cancelled' || r.isCancelled === true;
+      if (statusFilter === 'active' && isCancelled) return false;
+      if (statusFilter === 'cancelled' && !isCancelled) return false;
 
       // Branch filter
       if (branchFilter !== 'All Branches' && r.branch !== branchFilter) return false;
@@ -126,16 +169,18 @@ export default function EventRosterManager({ onToast }) {
         (r.event_title && r.event_title.toLowerCase().includes(q))
       );
     });
-  }, [roster, selectedEventId, branchFilter, yearFilter, attendanceFilter, searchQuery]);
+  }, [roster, selectedEventId, statusFilter, branchFilter, yearFilter, attendanceFilter, searchQuery]);
 
   // KPI Metrics
   const stats = useMemo(() => {
     const total = roster.length;
+    const active = roster.filter((r) => (r.status || '').toLowerCase() !== 'cancelled' && !r.isCancelled).length;
+    const cancelled = roster.filter((r) => (r.status || '').toLowerCase() === 'cancelled' || r.isCancelled).length;
     const attended = roster.filter((r) => r.attendance).length;
-    const pending = total - attended;
-    const checkInRate = total > 0 ? Math.round((attended / total) * 100) : 0;
+    const pending = Math.max(0, active - attended);
+    const checkInRate = active > 0 ? Math.round((attended / active) * 100) : 0;
 
-    return { total, attended, pending, checkInRate };
+    return { total, active, cancelled, attended, pending, checkInRate };
   }, [roster]);
 
   const handleExport = () => {
@@ -163,7 +208,7 @@ export default function EventRosterManager({ onToast }) {
             EVENT ENROLLMENTS &amp; <span className="text-red-500">ATTENDEE ROSTER</span>
           </h2>
           <p className="text-xs text-neutral-400 font-cyber">
-            Real-time participant rosters, pass codes, gate attendance check-ins, and department breakdown.
+            Real-time participant rosters, pass codes, gate attendance check-ins, cancellation controls, and seat management.
           </p>
         </div>
 
@@ -182,7 +227,7 @@ export default function EventRosterManager({ onToast }) {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="p-4 rounded-2xl bg-neutral-900/60 border border-neutral-800">
           <span className="text-[10px] font-mono uppercase text-neutral-400">Total Enrolled</span>
           <div className="text-2xl font-black font-heading text-white mt-1">{stats.total}</div>
@@ -190,9 +235,23 @@ export default function EventRosterManager({ onToast }) {
 
         <div className="p-4 rounded-2xl bg-neutral-900/60 border border-neutral-800">
           <span className="text-[10px] font-mono uppercase text-emerald-400 flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5" /> Active Enrolled
+          </span>
+          <div className="text-2xl font-black font-heading text-emerald-400 mt-1">{stats.active}</div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-neutral-900/60 border border-neutral-800">
+          <span className="text-[10px] font-mono uppercase text-red-400 flex items-center gap-1">
+            <Ban className="w-3.5 h-3.5" /> Cancelled
+          </span>
+          <div className="text-2xl font-black font-heading text-red-400 mt-1">{stats.cancelled}</div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-neutral-900/60 border border-neutral-800">
+          <span className="text-[10px] font-mono uppercase text-cyan-400 flex items-center gap-1">
             <UserCheck className="w-3.5 h-3.5" /> Checked In
           </span>
-          <div className="text-2xl font-black font-heading text-emerald-400 mt-1">{stats.attended}</div>
+          <div className="text-2xl font-black font-heading text-cyan-300 mt-1">{stats.attended}</div>
         </div>
 
         <div className="p-4 rounded-2xl bg-neutral-900/60 border border-neutral-800">
@@ -200,11 +259,6 @@ export default function EventRosterManager({ onToast }) {
             <Clock className="w-3.5 h-3.5" /> Pending Check-in
           </span>
           <div className="text-2xl font-black font-heading text-amber-300 mt-1">{stats.pending}</div>
-        </div>
-
-        <div className="p-4 rounded-2xl bg-neutral-900/60 border border-neutral-800">
-          <span className="text-[10px] font-mono uppercase text-red-400">Check-In Rate</span>
-          <div className="text-2xl font-black font-heading text-red-400 mt-1">{stats.checkInRate}%</div>
         </div>
       </div>
 
@@ -251,27 +305,48 @@ export default function EventRosterManager({ onToast }) {
           </div>
         </div>
 
-        {/* Second Row: Filters for Branch, Year, and Attendance Status */}
+        {/* Second Row: Filters for Status, Attendance, Branch, and Year */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-neutral-800/80">
           
-          {/* Attendance Status Tabs */}
-          <div className="flex items-center gap-1.5">
+          {/* Filter Tabs: Status & Attendance */}
+          <div className="flex flex-wrap items-center gap-1.5">
             {[
               { id: 'all', label: 'All', count: stats.total },
-              { id: 'attended', label: 'Checked In', count: stats.attended },
-              { id: 'pending', label: 'Pending', count: stats.pending },
+              { id: 'active', label: 'Active', count: stats.active },
+              { id: 'cancelled', label: 'Cancelled', count: stats.cancelled },
             ].map((tab) => (
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setAttendanceFilter(tab.id)}
+                onClick={() => setStatusFilter(tab.id)}
                 className={`px-3 py-1 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
-                  attendanceFilter === tab.id
+                  statusFilter === tab.id
                     ? 'bg-red-600 text-white shadow-[0_0_12px_rgba(223,37,49,0.4)]'
                     : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
                 }`}
               >
                 {tab.label} ({tab.count})
+              </button>
+            ))}
+
+            <div className="h-4 w-px bg-neutral-800 mx-1 hidden sm:block" />
+
+            {[
+              { id: 'all', label: 'Gate All' },
+              { id: 'attended', label: `Checked In (${stats.attended})` },
+              { id: 'pending', label: `Pending (${stats.pending})` },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setAttendanceFilter(tab.id)}
+                className={`px-2.5 py-1 rounded-xl text-[11px] font-mono transition-all cursor-pointer ${
+                  attendanceFilter === tab.id
+                    ? 'bg-neutral-800 text-white border border-neutral-600'
+                    : 'bg-black/60 text-neutral-400 hover:text-white border border-neutral-800'
+                }`}
+              >
+                {tab.label}
               </button>
             ))}
           </div>
@@ -312,7 +387,7 @@ export default function EventRosterManager({ onToast }) {
           <Users className="w-8 h-8 text-neutral-600 mx-auto" />
           <h4 className="text-base font-bold font-heading text-neutral-300">No Participants Found</h4>
           <p className="text-xs font-mono text-neutral-500">
-            {searchQuery || branchFilter !== 'All Branches' || attendanceFilter !== 'all'
+            {searchQuery || branchFilter !== 'All Branches' || attendanceFilter !== 'all' || statusFilter !== 'all'
               ? 'Try adjusting your search criteria or filter options.'
               : 'As students enroll in this event, their names and digital pass codes will appear here in real time.'}
           </p>
@@ -328,111 +403,164 @@ export default function EventRosterManager({ onToast }) {
                 <th className="p-3.5">Contact Details</th>
                 <th className="p-3.5">Branch &amp; Year</th>
                 <th className="p-3.5">Enrolled Event</th>
+                <th className="p-3.5 text-center">Status</th>
                 <th className="p-3.5 text-center">Gate Attendance</th>
-                <th className="p-3.5 text-right">Action</th>
+                <th className="p-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-800/60">
-              {filteredRoster.map((r) => (
-                <tr key={r.id} className="hover:bg-neutral-800/40 transition-colors">
-                  
-                  {/* Ticket Pass Code */}
-                  <td className="p-3.5">
-                    <div className="flex items-center gap-1.5">
-                      <code className="px-2 py-0.5 rounded-lg bg-black border border-red-500/40 text-red-300 font-bold tracking-widest text-[11px]">
-                        {r.ticket_code || 'SMYK-PASS'}
-                      </code>
+              {filteredRoster.map((r) => {
+                const isCancelled = (r.status || '').toLowerCase() === 'cancelled' || r.isCancelled === true;
+                return (
+                  <tr 
+                    key={r.id} 
+                    className={`transition-colors ${
+                      isCancelled ? 'bg-red-950/10 hover:bg-red-950/20 text-neutral-400' : 'hover:bg-neutral-800/40'
+                    }`}
+                  >
+                    
+                    {/* Ticket Pass Code */}
+                    <td className="p-3.5">
+                      <div className="flex items-center gap-1.5">
+                        <code className={`px-2 py-0.5 rounded-lg border tracking-widest text-[11px] font-bold ${
+                          isCancelled 
+                            ? 'bg-neutral-950 border-neutral-800 text-neutral-500 line-through' 
+                            : 'bg-black border-red-500/40 text-red-300'
+                        }`}>
+                          {r.ticket_code || 'SMYK-PASS'}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(r.ticket_code, r.id)}
+                          className="p-1 rounded hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                          title="Copy Ticket Code"
+                        >
+                          {copiedCode === r.id ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+
+                    {/* Student Name */}
+                    <td className="p-3.5">
+                      <div className={`font-bold text-sm ${isCancelled ? 'text-neutral-400' : 'text-white'}`}>
+                        {r.student_name}
+                      </div>
+                      {r.section && (
+                        <span className="text-[10px] font-mono text-neutral-500">Sec: {r.section}</span>
+                      )}
+                    </td>
+
+                    {/* University ID / Roll */}
+                    <td className="p-3.5 font-bold text-slate-200">
+                      {r.university_id}
+                    </td>
+
+                    {/* Contact Details */}
+                    <td className="p-3.5 space-y-0.5">
+                      <div className="text-neutral-300 text-[11px] truncate max-w-[170px]" title={r.email}>
+                        {r.email}
+                      </div>
+                      <div className="text-red-400 text-[11px]">{r.phone}</div>
+                    </td>
+
+                    {/* Branch & Year */}
+                    <td className="p-3.5">
+                      <div className="text-neutral-300 truncate max-w-[150px]" title={r.branch}>
+                        {r.branch?.replace(/ \(.*\)/, '') || 'General'}
+                      </div>
+                      <div className="text-[10px] text-neutral-500">{r.year}</div>
+                    </td>
+
+                    {/* Event Title */}
+                    <td className="p-3.5">
+                      <span className="font-bold text-white truncate block max-w-[140px]" title={r.event_title}>
+                        {r.event_title || 'SAMYAK Event'}
+                      </span>
+                      <span className="text-[10px] text-neutral-500">
+                        {r.registered_at ? new Date(r.registered_at).toLocaleDateString('en-IN') : 'Recent'}
+                      </span>
+                    </td>
+
+                    {/* Registration Status */}
+                    <td className="p-3.5 text-center">
+                      {isCancelled ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-950 border border-red-500/60 text-red-400 font-bold text-[10px] uppercase">
+                          <Ban className="w-3 h-3" /> Cancelled
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/60 text-emerald-400 font-bold text-[10px] uppercase">
+                          <CheckCircle2 className="w-3 h-3" /> Active
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Gate Attendance Toggle Switch */}
+                    <td className="p-3.5 text-center">
                       <button
                         type="button"
-                        onClick={() => handleCopy(r.ticket_code, r.id)}
-                        className="p-1 rounded hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-                        title="Copy Ticket Code"
+                        disabled={togglingId === r.id || isCancelled}
+                        onClick={() => handleToggleAttendance(r)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono font-bold transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                          r.attendance
+                            ? 'bg-emerald-950 border border-emerald-500/60 text-emerald-400 shadow-[0_0_12px_rgba(255,255,255,0.3)] hover:bg-emerald-900'
+                            : 'bg-amber-950/60 border border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
+                        }`}
+                        title={r.attendance ? 'Click to mark Absent / Revert' : 'Click to Check In at gate'}
                       >
-                        {copiedCode === r.id ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        {togglingId === r.id ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        ) : r.attendance ? (
+                          <UserCheck className="w-3.5 h-3.5" />
                         ) : (
-                          <Copy className="w-3.5 h-3.5" />
+                          <Clock className="w-3.5 h-3.5" />
                         )}
+                        <span>{r.attendance ? 'Checked In' : 'Pending Check-in'}</span>
                       </button>
-                    </div>
-                  </td>
+                    </td>
 
-                  {/* Student Name */}
-                  <td className="p-3.5">
-                    <div className="font-bold text-white text-sm">{r.student_name}</div>
-                    {r.section && (
-                      <span className="text-[10px] font-mono text-neutral-500">Sec: {r.section}</span>
-                    )}
-                  </td>
+                    {/* Actions: Cancel / Restore / Delete */}
+                    <td className="p-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {!isCancelled ? (
+                          <button
+                            type="button"
+                            disabled={togglingId === r.id}
+                            onClick={() => handleCancelRegistration(r)}
+                            className="p-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-500/50 text-red-300 transition-colors cursor-pointer"
+                            title="Cancel registration and restore seat count"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={togglingId === r.id}
+                            onClick={() => handleReactivateRegistration(r)}
+                            className="p-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 transition-colors cursor-pointer"
+                            title="Restore registration to active"
+                          >
+                            <RotateCw className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
-                  {/* University ID / Roll */}
-                  <td className="p-3.5 font-bold text-slate-200">
-                    {r.university_id}
-                  </td>
-
-                  {/* Contact Details */}
-                  <td className="p-3.5 space-y-0.5">
-                    <div className="text-neutral-300 text-[11px] truncate max-w-[170px]" title={r.email}>
-                      {r.email}
-                    </div>
-                    <div className="text-red-400 text-[11px]">{r.phone}</div>
-                  </td>
-
-                  {/* Branch & Year */}
-                  <td className="p-3.5">
-                    <div className="text-neutral-300 truncate max-w-[150px]" title={r.branch}>
-                      {r.branch?.replace(/ \(.*\)/, '') || 'General'}
-                    </div>
-                    <div className="text-[10px] text-neutral-500">{r.year}</div>
-                  </td>
-
-                  {/* Event Title */}
-                  <td className="p-3.5">
-                    <span className="font-bold text-white truncate block max-w-[140px]" title={r.event_title}>
-                      {r.event_title || 'SAMYAK Event'}
-                    </span>
-                    <span className="text-[10px] text-neutral-500">
-                      {r.registered_at ? new Date(r.registered_at).toLocaleDateString('en-IN') : 'Recent'}
-                    </span>
-                  </td>
-
-                  {/* Gate Attendance Toggle Switch */}
-                  <td className="p-3.5 text-center">
-                    <button
-                      type="button"
-                      disabled={togglingId === r.id}
-                      onClick={() => handleToggleAttendance(r)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono font-bold transition-all cursor-pointer ${
-                        r.attendance
-                          ? 'bg-emerald-950 border border-emerald-500/60 text-emerald-400 shadow-[0_0_12px_rgba(255,255,255,0.3)] hover:bg-emerald-900'
-                          : 'bg-amber-950/60 border border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
-                      }`}
-                      title={r.attendance ? 'Click to mark Absent / Revert' : 'Click to Check In at gate'}
-                    >
-                      {togglingId === r.id ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      ) : r.attendance ? (
-                        <UserCheck className="w-3.5 h-3.5" />
-                      ) : (
-                        <Clock className="w-3.5 h-3.5" />
-                      )}
-                      <span>{r.attendance ? 'Checked In' : 'Pending Check-in'}</span>
-                    </button>
-                  </td>
-
-                  {/* Action */}
-                  <td className="p-3.5 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteRegistration(r.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-950/50 text-neutral-500 hover:text-red-400 transition-colors cursor-pointer"
-                      title="Delete record"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                        <button
+                          type="button"
+                          disabled={togglingId === r.id}
+                          onClick={() => handleDeleteRegistration(r)}
+                          className="p-1.5 rounded-lg hover:bg-red-950/50 text-neutral-500 hover:text-red-400 transition-colors cursor-pointer"
+                          title="Delete record permanently"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

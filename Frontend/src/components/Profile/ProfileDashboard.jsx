@@ -5,12 +5,14 @@ import {
   User, School, 
   CreditCard, ArrowRight, ShieldCheck,
   LogOut, Upload, X, Edit, IdCard,
-  Lock, Eye, RefreshCw, Sparkles
+  Lock, Eye, RefreshCw, Sparkles,
+  Calendar, Clock, MapPin, Ban, CheckCircle2, QrCode
 } from 'lucide-react';
 import { useUser } from '../../data/useUser';
 import GatePassCard from '../Payment/GatePassCard';
 import { maskUtr, maskPhone } from '../../services/fileSecurityService';
 import SecureImage from '../SecureImage/SecureImage';
+import { listenToUserRegistrations } from '../../services/eventRegistrationService';
 
 export default function ProfileDashboard() {
   const { 
@@ -67,6 +69,20 @@ export default function ProfileDashboard() {
   const [paymentScreenshotModalOpen, setPaymentScreenshotModalOpen] = useState(false);
   const [fullGatePassModalOpen, setFullGatePassModalOpen] = useState(false);
   const idCardInputRef = useRef(null);
+
+  // Student's real-time registered competitions
+  const [myEventRegistrations, setMyEventRegistrations] = useState([]);
+  useEffect(() => {
+    const uid = currentUser?.uid || userData?.uid;
+    if (!uid) {
+      setMyEventRegistrations([]);
+      return;
+    }
+    const unsub = listenToUserRegistrations(uid, (list) => {
+      setMyEventRegistrations(list);
+    });
+    return () => unsub();
+  }, [currentUser?.uid, userData?.uid]);
 
   // Initialize edit form when opening
   const handleOpenEdit = () => {
@@ -679,6 +695,90 @@ export default function ProfileDashboard() {
                           className="text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1"
                         >
                           View Pass &rarr;
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 4C. ENROLLED EVENTS & COMPETITIONS SECTION */}
+          {myEventRegistrations && myEventRegistrations.length > 0 && (
+            <div className="p-6 rounded-3xl bg-neutral-950 border border-neutral-800 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-red-500" />
+                  <h3 className="text-sm font-bold font-heading text-white uppercase tracking-wider">
+                    Enrolled Competitions &amp; Flagships ({myEventRegistrations.length})
+                  </h3>
+                </div>
+                <Link
+                  to="/events"
+                  className="text-[11px] font-mono text-neutral-400 hover:text-white"
+                >
+                  Browse Events &rarr;
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {myEventRegistrations.map((ev, idx) => {
+                  const isCancelled = (ev.status || '').toLowerCase() === 'cancelled' || ev.isCancelled === true;
+                  return (
+                    <div
+                      key={ev.id || idx}
+                      className={`p-4 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
+                        isCancelled
+                          ? 'bg-red-950/20 border-red-500/30'
+                          : 'bg-neutral-900/80 border-neutral-800 hover:border-red-500/40'
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          {isCancelled ? (
+                            <span className="px-2 py-0.5 rounded-full bg-red-950 border border-red-500/50 text-red-400 text-[9px] font-mono font-bold uppercase flex items-center gap-1">
+                              <Ban className="w-2.5 h-2.5" /> Cancelled
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono font-bold uppercase flex items-center gap-1">
+                              <CheckCircle2 className="w-2.5 h-2.5" /> Enrolled
+                            </span>
+                          )}
+
+                          {ev.ticket_code && (
+                            <code className="text-[10px] font-mono text-red-400 font-bold bg-black/60 px-1.5 py-0.5 rounded border border-red-500/30">
+                              {ev.ticket_code}
+                            </code>
+                          )}
+                        </div>
+
+                        <div>
+                          <h4 className="text-xs font-mono font-bold text-white truncate max-w-[220px]" title={ev.event_title}>
+                            {ev.event_title || 'SAMYAK Event'}
+                          </h4>
+                          {(ev.event_date || ev.event_time) && (
+                            <div className="text-[10px] font-mono text-neutral-400 flex items-center gap-1 mt-0.5">
+                              <Clock className="w-3 h-3 text-neutral-500" />
+                              <span>{ev.event_date} {ev.event_time}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {isCancelled && (
+                          <p className="text-[10px] font-mono text-amber-300 leading-tight">
+                            Cancelled. Your time slot is free to register for another event!
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t border-neutral-800 flex items-center justify-between text-[11px] font-mono">
+                        <span className="text-neutral-500">{ev.event_venue || 'Fest Arena'}</span>
+                        <Link
+                          to={`/events/${ev.event_id}`}
+                          className="text-red-400 hover:text-red-300 font-bold flex items-center gap-1"
+                        >
+                          <span>{isCancelled ? 'Find Alternatives' : 'View Arena'} &rarr;</span>
                         </Link>
                       </div>
                     </div>
