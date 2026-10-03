@@ -84,6 +84,20 @@ export default function ProfileDashboard() {
     return () => unsub();
   }, [currentUser?.uid, userData?.uid]);
 
+  // Lock backside scrolling when profile modals are open
+  useEffect(() => {
+    if (showEditForm || idCardModalOpen || paymentScreenshotModalOpen || fullGatePassModalOpen) {
+      const prev = document.body.style.overflow;
+      const prevOverscroll = document.body.style.overscrollBehavior;
+      document.body.style.overflow = 'hidden';
+      document.body.style.overscrollBehavior = 'none';
+      return () => {
+        document.body.style.overflow = prev;
+        document.body.style.overscrollBehavior = prevOverscroll;
+      };
+    }
+  }, [showEditForm, idCardModalOpen, paymentScreenshotModalOpen, fullGatePassModalOpen]);
+
   // Initialize edit form when opening
   const handleOpenEdit = () => {
     const klu = isKluValue(userData.college);

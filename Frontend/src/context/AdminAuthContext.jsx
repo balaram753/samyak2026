@@ -15,7 +15,7 @@ import {
 } from '../services/firebase';
 import {
   ADMIN_ROLES, REGISTRATIONS_DESK_ROLES, EVENTS_ADMIN_ROLES, CLUB_ROLES, GATE_ROLES,
-  roleKey, isKnownRole, roleRecordIds, isActiveRecord, allowedAdminTabs,
+  roleKey, isKnownRole, roleRecordIds, isActiveRecord, allowedAdminTabs, LEGACY_ROLE_LABELS,
 } from '../services/roles';
 
 export const SUPER_ADMIN_EMAILS = [
@@ -96,11 +96,23 @@ async function resolveAdminProfile(firebaseUser) {
     const snap = await getDoc(doc(db, 'admins', id)).catch(() => null);
     if (snap?.exists()) { adminDoc = snap; break; }
   }
+  if (!adminDoc) {
+    for (const id of roleRecordIds(firebaseUser)) {
+      const snap = await getDoc(doc(db, 'staff', id)).catch(() => null);
+      if (snap?.exists()) { adminDoc = snap; break; }
+    }
+  }
   if (!adminDoc) return null;
 
   const data = adminDoc.data();
   if (!isActiveRecord(data)) return null;
-  if (!isKnownRole(data.role)) {
+
+  let effectiveRole = roleKey(data.role);
+  if (!isKnownRole(effectiveRole) && LEGACY_ROLE_LABELS[effectiveRole]) {
+    effectiveRole = LEGACY_ROLE_LABELS[effectiveRole];
+  }
+
+  if (!isKnownRole(effectiveRole)) {
     // Old console labels ("Full Administrator", ...) grant nothing until migrated.
     const err = new Error(`Your administrator role "${data.role || 'none'}" has not been migrated yet. Ask the Super Admin to update it.`);
     err.code = 'ROLE_NEEDS_MIGRATION';
@@ -115,7 +127,7 @@ async function resolveAdminProfile(firebaseUser) {
     fullName: data.fullName || firebaseUser.displayName,
     username: data.username || '',
     photoURL: firebaseUser.photoURL,
-    role: roleKey(data.role),
+    role: effectiveRole,
     roleLabel: data.roleLabel || data.role,
     wing: data.wing || 'Wing Admin',
     club: data.club || '',

@@ -598,6 +598,20 @@ export default function TotalUsersManager({ onToast }) {
     } catch {}
   };
 
+  // Lock backside body scrolling when student inspection page or lightbox modal is open
+  useEffect(() => {
+    if (selectedUserModal || idCardModalUrl) {
+      const prevOverflow = document.body.style.overflow;
+      const prevOverscroll = document.body.style.overscrollBehavior;
+      document.body.style.overflow = 'hidden';
+      document.body.style.overscrollBehavior = 'none';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        document.body.style.overscrollBehavior = prevOverscroll;
+      };
+    }
+  }, [selectedUserModal, idCardModalUrl]);
+
   // Handle browser back button smoothly
   useEffect(() => {
     const handlePopState = () => {
@@ -1570,10 +1584,11 @@ export default function TotalUsersManager({ onToast }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 15 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-neutral-950 text-white overflow-y-auto flex flex-col font-sans w-full min-h-screen"
+            className="fixed inset-0 z-50 bg-neutral-950 text-white overflow-y-auto overscroll-contain flex flex-col font-sans w-full h-[100dvh]"
+            style={{ WebkitOverflowScrolling: 'touch' }}
           >
             {/* Top Sticky Navigation Bar */}
-            <div className="sticky top-0 z-40 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4 shadow-xl">
+            <div className="sticky top-0 z-40 bg-neutral-950/95 backdrop-blur-md border-b border-neutral-800 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4 shadow-xl shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <button
                   onClick={handleCloseInspect}
@@ -1617,7 +1632,7 @@ export default function TotalUsersManager({ onToast }) {
             </div>
 
             {/* Main Page Content */}
-            <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1">
+            <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 pb-28 space-y-6 flex-1">
               
               {/* User Hero Banner */}
               <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-neutral-900 via-neutral-900/90 to-black border border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-5 shadow-2xl">

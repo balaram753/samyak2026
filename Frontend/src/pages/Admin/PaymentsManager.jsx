@@ -125,6 +125,20 @@ export default function PaymentsManager({ onToast }) {
     };
   }, []);
 
+  // Lock backside scrolling when inspection modal, zoomed receipt, or confirm dialog is open
+  useEffect(() => {
+    if (selectedPaymentModal || zoomedImage || showPurgeConfirm) {
+      const prev = document.body.style.overflow;
+      const prevOverscroll = document.body.style.overscrollBehavior;
+      document.body.style.overflow = 'hidden';
+      document.body.style.overscrollBehavior = 'none';
+      return () => {
+        document.body.style.overflow = prev;
+        document.body.style.overscrollBehavior = prevOverscroll;
+      };
+    }
+  }, [selectedPaymentModal, zoomedImage, showPurgeConfirm]);
+
   // Copy UTR ID helper
   const handleCopyUtr = (utr, id) => {
     if (!utr) return;

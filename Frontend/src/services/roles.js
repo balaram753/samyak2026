@@ -29,7 +29,10 @@ export function isKnownRole(role) {
 /** The ids a role record may have for this signed-in account. */
 export function roleRecordIds(firebaseUser) {
   const ids = [firebaseUser.uid];
-  if (firebaseUser.email && firebaseUser.emailVerified) ids.push(firebaseUser.email.toLowerCase());
+  if (firebaseUser.email) {
+    const cleanEmail = firebaseUser.email.trim().toLowerCase();
+    if (!ids.includes(cleanEmail)) ids.push(cleanEmail);
+  }
   return ids;
 }
 
@@ -42,9 +45,9 @@ export function isActiveRecord(data) {
 export function allowedAdminTabs(role, isSuperAdmin) {
   const key = roleKey(role);
   if (isSuperAdmin || ADMIN_ROLES.includes(key)) return 'all';
-  if (REGISTRATIONS_DESK_ROLES.includes(key)) return ['payments', 'gatepasses', 'users', 'rosters'];
-  if (EVENTS_ADMIN_ROLES.includes(key)) return ['events', 'departments', 'sponsors', 'about', 'schedule', 'workshops', 'rosters'];
-  if (CLUB_ROLES.includes(key)) return ['techclub'];
+  if (REGISTRATIONS_DESK_ROLES.includes(key)) return ['overview', 'users', 'payments', 'gatepasses', 'rosters'];
+  if (EVENTS_ADMIN_ROLES.includes(key)) return ['overview', 'events', 'workshops', 'rosters', 'departments', 'sponsors', 'about', 'schedule'];
+  if (CLUB_ROLES.includes(key)) return ['overview', 'techclub', 'rosters'];
   return [];
 }
 

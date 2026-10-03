@@ -380,16 +380,27 @@ export default function AdminDashboard() {
               <img 
                 src={adminUser.photoURL} 
                 alt="Admin" 
-                className="w-7 h-7 rounded-full border border-red-500/50" 
+                className="w-7 h-7 rounded-full border border-red-500/50 object-cover" 
               />
             ) : (
               <div className="w-7 h-7 rounded-full bg-red-600/30 border border-red-500 flex items-center justify-center text-xs font-bold text-red-300">
                 <Shield className="w-3.5 h-3.5" />
               </div>
             )}
-            <div className="hidden md:flex flex-col text-left text-[11px] leading-tight">
-              <span className="font-bold text-slate-200">{adminUser?.displayName || adminUser?.fullName || 'Administrator'}</span>
-              <span className="text-[9px] font-mono text-red-400">{adminUser?.email}</span>
+            <div className="hidden sm:flex flex-col text-left text-[11px] leading-tight">
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-slate-200 truncate max-w-[120px] md:max-w-[180px]">
+                  {adminUser?.displayName || adminUser?.fullName || 'Administrator'}
+                </span>
+                <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase ${
+                  isSuperAdmin 
+                    ? 'bg-red-950 text-red-400 border border-red-800' 
+                    : 'bg-amber-950 text-amber-300 border border-amber-800'
+                }`}>
+                  {isSuperAdmin ? 'Super Admin' : (adminUser?.roleLabel || adminUser?.role || 'Sub-Admin')}
+                </span>
+              </div>
+              <span className="text-[9px] font-mono text-neutral-400 truncate max-w-[140px] md:max-w-[200px]">{adminUser?.email}</span>
             </div>
           </div>
 
@@ -409,7 +420,23 @@ export default function AdminDashboard() {
         
         {/* Sidebar Tabs */}
         <aside className="w-full md:w-64 bg-neutral-950 border-r border-neutral-800/80 p-4 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-x-visible flex-shrink-0">
-          <div className="hidden md:block px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-neutral-500">
+          {!isSuperAdmin && (
+            <div className="hidden md:block mb-2 p-2.5 rounded-xl bg-gradient-to-r from-amber-950/40 to-neutral-900 border border-amber-800/50 text-[10px] font-mono">
+              <div className="text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <Shield className="w-3 h-3 text-amber-400" />
+                <span>Sub-Admin Portal</span>
+              </div>
+              <div className="text-neutral-400 text-[9px] mt-0.5 truncate">
+                Role: {adminUser?.roleLabel || adminUser?.role || 'Sub-Admin'}
+              </div>
+              {adminUser?.club && (
+                <div className="text-amber-300/80 text-[9px] truncate">
+                  Club: {adminUser.club}
+                </div>
+              )}
+            </div>
+          )}
+          <div className="hidden md:block px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-neutral-500">
             Navigation Controls
           </div>
 

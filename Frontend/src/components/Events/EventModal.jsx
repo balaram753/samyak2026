@@ -1,8 +1,22 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, Clock, MapPin, Shield, Phone, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function EventModal({ event, isOpen, onClose, _onRegisterSuccess }) {
+  useEffect(() => {
+    if (isOpen) {
+      const prev = document.body.style.overflow;
+      const prevOverscroll = document.body.style.overscrollBehavior;
+      document.body.style.overflow = 'hidden';
+      document.body.style.overscrollBehavior = 'none';
+      return () => {
+        document.body.style.overflow = prev;
+        document.body.style.overscrollBehavior = prevOverscroll;
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen || !event) return null;
 
   return (
