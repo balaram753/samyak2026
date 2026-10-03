@@ -5,7 +5,7 @@ import {
   User, School, 
   CreditCard, ArrowRight, ShieldCheck,
   LogOut, Upload, X, Edit, IdCard,
-  Lock, Eye, RefreshCw
+  Lock, Eye, RefreshCw, Sparkles
 } from 'lucide-react';
 import { useUser } from '../../data/useUser';
 import GatePassCard from '../Payment/GatePassCard';
@@ -627,6 +627,66 @@ export default function ProfileDashboard() {
               </div>
             )}
           </div>
+
+          {/* 4B. ENROLLED WORKSHOPS SECTION */}
+          {userData.registeredWorkshops && userData.registeredWorkshops.length > 0 && (
+            <div className="p-6 rounded-3xl bg-neutral-950 border border-neutral-800 space-y-4 shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-sm font-bold font-heading text-white uppercase tracking-wider">
+                    Enrolled Technical Workshops ({userData.registeredWorkshops.length})
+                  </h3>
+                </div>
+                <Link
+                  to="/workshops"
+                  className="text-[11px] font-mono text-neutral-400 hover:text-white"
+                >
+                  Explore More &rarr;
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {userData.registeredWorkshops.map((ws, idx) => {
+                  const id = typeof ws === 'string' ? ws : ws.workshopId;
+                  const title = typeof ws === 'string' ? ws : (ws.workshopTitle || 'Technical Masterclass');
+                  const code = typeof ws === 'object' ? ws.regCode : null;
+                  return (
+                    <div
+                      key={idx}
+                      className="p-4 rounded-2xl bg-neutral-900/80 border border-neutral-800 hover:border-emerald-500/40 transition-all flex flex-col justify-between space-y-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono font-bold uppercase">
+                            Registered
+                          </span>
+                          {code && (
+                            <span className="text-[10px] font-mono text-red-400 font-bold">
+                              {code}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-xs font-mono font-bold text-white truncate max-w-[220px]" title={title}>
+                          {title}
+                        </h4>
+                      </div>
+
+                      <div className="pt-2 border-t border-neutral-800 flex items-center justify-between text-[11px] font-mono">
+                        <span className="text-neutral-500">Workshop Pass</span>
+                        <Link
+                          to={`/workshops/${id}`}
+                          className="text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1"
+                        >
+                          View Pass &rarr;
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
         </div>
 

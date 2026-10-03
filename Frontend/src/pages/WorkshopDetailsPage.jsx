@@ -175,19 +175,19 @@ export default function WorkshopDetailsPage() {
 
   // Pre-fill profile details
   useEffect(() => {
-    if (userData) {
+    if (userData || currentUser) {
       setFormData((prev) => ({
         ...prev,
-        studentName: userData.name || prev.studentName,
-        email: userData.email || prev.email,
-        phone: userData.phone || userData.mobile || prev.phone,
-        universityId: userData.studentId || userData.rollNo || prev.universityId,
-        branch: userData.branch || prev.branch,
-        collegeChoice: (userData.college || '').toLowerCase().includes('kl') ? 'kl_university' : 'other',
-        customCollegeName: (userData.college || '').toLowerCase().includes('kl') ? '' : (userData.college || '')
+        studentName: userData?.name || currentUser?.displayName || prev.studentName,
+        email: userData?.email || currentUser?.email || prev.email,
+        phone: userData?.phone || userData?.mobile || prev.phone,
+        universityId: userData?.studentId || userData?.rollNo || prev.universityId,
+        branch: userData?.branch || prev.branch,
+        collegeChoice: (userData?.college || '').toLowerCase().includes('kl') || currentUser?.email?.endsWith('@kluniversity.in') ? 'kl_university' : (userData?.college ? 'other' : prev.collegeChoice),
+        customCollegeName: (userData?.college || '').toLowerCase().includes('kl') ? '' : (userData?.college || prev.customCollegeName)
       }));
     }
-  }, [userData]);
+  }, [userData, currentUser]);
 
   const handlePaymentScreenshotChange = (e) => {
     const file = e.target.files?.[0];
