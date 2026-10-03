@@ -20,16 +20,18 @@ export default function WorkshopsPage() {
     userData?.category === 'INTERNAL' ||
     (userData?.university || userData?.college || '').toLowerCase().includes('kl') ||
     userData?.collegeChoice === 'kl_university' ||
-    userData?.email?.endsWith('@kluniversity.in')
+    userData?.email?.endsWith('@kluniversity.in') ||
+    currentUser?.email?.endsWith('@kluniversity.in')
   );
   const isPaymentVerified = Boolean(userData?.paymentStatus === 'VERIFIED' || userData?.status === 'verified');
   const hasGatePass = Boolean(
-    userData?.gatePassStatus === 'ISSUED' ||
-    userData?.gatePassToken ||
-    userData?.gatePass?.token ||
-    isKluUser
+    !isKluUser && (
+      userData?.gatePassStatus === 'ISSUED' ||
+      userData?.gatePassToken ||
+      userData?.gatePass?.token
+    )
   );
-  const isEligibleWithGatePass = Boolean(currentUser && isPaymentVerified && hasGatePass);
+  const isEligibleWithGatePass = Boolean(currentUser && !isKluUser && isPaymentVerified && hasGatePass);
 
   const [workshops, setWorkshops] = useState(DEFAULT_WORKSHOPS);
   const [loading, setLoading] = useState(true);
@@ -105,7 +107,15 @@ export default function WorkshopsPage() {
           </p>
 
           {/* Workshop Registration Eligibility Callout Pill */}
-          {isEligibleWithGatePass ? (
+          {isKluUser ? (
+            <div className="p-4 rounded-2xl bg-neutral-900/90 border border-amber-500/40 max-w-2xl mx-auto flex items-start sm:items-center gap-3 text-left shadow-[0_0_25px_rgba(245,158,11,0.15)]">
+              <Sparkles className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+              <div className="text-xs font-mono">
+                <span className="text-white font-bold block sm:inline">KL University Students Notice: </span>
+                <span className="text-neutral-300">Workshop registrations require individual workshop entry fees (indicated on each card) for hands-on lab workstation access, compute resources, and certificates.</span>
+              </div>
+            </div>
+          ) : isEligibleWithGatePass ? (
             <div className="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 max-w-2xl mx-auto flex items-start sm:items-center gap-3 text-left shadow-[0_0_25px_rgba(16,185,129,0.2)]">
               <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5 sm:mt-0" />
               <div className="text-xs font-mono">
