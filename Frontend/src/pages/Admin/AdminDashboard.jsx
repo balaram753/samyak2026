@@ -6,14 +6,15 @@ import {
   Upload, CheckCircle2, AlertCircle, Save, Eye, Users, Calendar, 
   Phone, Mail, MapPin, Trophy, DollarSign, Clock, FileText, Image as ImageIcon,
   ChevronRight, RefreshCw, X, Search, Filter, Layers, HelpCircle, Folder,
-  UserCheck, CreditCard, Ticket, Cpu, Award, Star
+  UserCheck, CreditCard, Ticket, Cpu, Award, Star,
+  MessageSquare, Copy, Check
 } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { useSiteContent } from '../../context/SiteContentContext';
 import { uploadImage } from '../../services/r2Storage';
 import { collection, onSnapshot, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { subscribeContent } from '../../services/contentStore';
+import { subscribeContent, deleteContentDoc } from '../../services/contentStore';
 import { compareEventsByOrderAndTime } from '../../data/events';
 import SuperadminSuite from './SuperadminSuite';
 import DepartmentsManager from './DepartmentsManager';
@@ -1561,7 +1562,7 @@ function AboutManager({ aboutContent, onSave }) {
 
 
 // 6. CONTACT & INQUIRIES MANAGER
-function ContactManager({ contactContent, inquiries, onSave }) {
+function ContactManager({ contactContent, inquiries = [], onSave }) {
   const [form, setForm] = useState({
     phone: '',
     email: '',
@@ -1576,6 +1577,99 @@ function ContactManager({ contactContent, inquiries, onSave }) {
       ...(contactContent?.socials || {})
     }
   });
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [copiedKey, setCopiedKey] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const copyToClipboard = (text, key) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const handleDeleteInquiry = async (id) => {
+    if (!window.confirm('Are you sure you want to dismiss/delete this contact inquiry?')) return;
+    try {
+      setDeletingId(id);
+      await deleteContentDoc('inquiries', id);
+    } catch (err) {
+      console.error('Failed to delete inquiry:', err);
+      alert('Could not delete inquiry. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const formatInquiryDate = (raw) => {
+    if (!raw) return null;
+    try {
+      const ms = typeof raw === 'number' ? raw : (raw.seconds ? raw.seconds * 1000 : new Date(raw).getTime());
+      if (isNaN(ms)) return null;
+      return new Date(ms).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const getCategoryStyle = (subject = '') => {
+    const s = (subject || '').toLowerCase();
+    if (s.includes('payment')) return {
+      badge: 'bg-red-500/15 text-red-400 border-red-500/40',
+      accent: 'from-red-600 via-rose-500 to-amber-500',
+      dot: 'bg-red-500 shadow-[0_0_8px_#ef4444]',
+    };
+    if (s.includes('registration') || s.includes('event')) return {
+      badge: 'bg-sky-500/15 text-sky-400 border-sky-500/40',
+      accent: 'from-sky-500 via-cyan-500 to-blue-600',
+      dot: 'bg-sky-400 shadow-[0_0_8px_#38bdf8]',
+    };
+    if (s.includes('accommodation') || s.includes('hostel')) return {
+      badge: 'bg-purple-500/15 text-purple-400 border-purple-500/40',
+      accent: 'from-purple-500 via-fuchsia-500 to-indigo-600',
+      dot: 'bg-purple-400 shadow-[0_0_8px_#c084fc]',
+    };
+    return {
+      badge: 'bg-neutral-800 text-neutral-300 border-neutral-700',
+      accent: 'from-neutral-700 via-neutral-600 to-neutral-800',
+      dot: 'bg-neutral-400',
+    };
+  };
+
+  const categories = useMemo(() => {
+    const set = new Set();
+    (inquiries || []).forEach((inq) => {
+      if (inq.subject && inq.subject.trim()) set.add(inq.subject.trim());
+    });
+    return ['all', ...Array.from(set)];
+  }, [inquiries]);
+
+  const filteredInquiries = useMemo(() => {
+    return (inquiries || []).filter((inq) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        (inq.name && inq.name.toLowerCase().includes(q)) ||
+        (inq.email && inq.email.toLowerCase().includes(q)) ||
+        (inq.phone && inq.phone.toLowerCase().includes(q)) ||
+        (inq.subject && inq.subject.toLowerCase().includes(q)) ||
+        (inq.message && inq.message.toLowerCase().includes(q));
+
+      const matchesCat =
+        categoryFilter === 'all' ||
+        (inq.subject && inq.subject.toLowerCase().includes(categoryFilter.toLowerCase()));
+
+      return matchesSearch && matchesCat;
+    });
+  }, [inquiries, searchQuery, categoryFilter]);
 
   useEffect(() => {
     if (contactContent) {
@@ -1777,30 +1871,245 @@ function ContactManager({ contactContent, inquiries, onSave }) {
         </div>
       </div>
 
-      {/* Inquiries Table */}
-      <div className="space-y-4">
-        <h3 className="font-heading font-bold text-xs uppercase tracking-wider text-red-400">
-          Messages from Contact Us Form ({inquiries.length})
-        </h3>
+      {/* Inquiries Header, Search & Filter Bar */}
+      <div className="space-y-5 pt-6 border-t border-neutral-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="font-heading font-black text-sm sm:text-base uppercase tracking-wider text-white flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-red-500" />
+              <span>Messages from Contact Us Form</span>
+              <span className="px-2 py-0.5 rounded-full bg-red-950/80 text-red-400 border border-red-500/40 text-xs font-mono font-bold">
+                {inquiries.length}
+              </span>
+            </h3>
+            <p className="text-[11px] font-mono text-neutral-400 mt-1">
+              Attendee queries submitted via the public contact desk. Each inquiry displays attendee contact details, query topic, and quick reply actions.
+            </p>
+          </div>
 
-        {inquiries.length === 0 ? (
-          <div className="p-8 rounded-2xl bg-neutral-900/40 border border-neutral-800 text-center text-xs font-mono text-neutral-500">
-            No inquiries received yet.
+          {/* Search Box */}
+          <div className="relative min-w-[260px] max-w-sm">
+            <Search className="w-3.5 h-3.5 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search name, email, phone, query..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-black border border-neutral-800 text-xs font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-red-500 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Category Filter Pills */}
+        {categories.length > 2 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider flex items-center gap-1">
+              <Filter className="w-3 h-3 text-neutral-500" />
+              <span>Filter:</span>
+            </span>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-3 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                  categoryFilter === cat
+                    ? 'bg-red-600 text-white font-bold shadow-md shadow-red-950'
+                    : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-800'
+                }`}
+              >
+                {cat === 'all' ? `All Queries (${inquiries.length})` : cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Inquiries Cards Grid (One user one box) */}
+        {filteredInquiries.length === 0 ? (
+          <div className="p-12 rounded-3xl bg-neutral-950/60 border border-neutral-800/80 text-center space-y-3">
+            <MessageSquare className="w-8 h-8 text-neutral-600 mx-auto" />
+            <div className="text-xs font-mono text-neutral-400 font-bold">
+              {inquiries.length === 0 ? 'No inquiries received yet.' : 'No messages match your search criteria.'}
+            </div>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-xs text-red-400 hover:underline font-mono"
+              >
+                Clear Search Filter
+              </button>
+            )}
           </div>
         ) : (
-          <div className="space-y-3">
-            {inquiries.map((inq) => (
-              <div key={inq.id} className="p-4 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="font-heading font-bold text-white text-xs">{inq.name} ({inq.email})</div>
-                  <span className="text-[10px] font-mono text-neutral-500">{inq.phone}</span>
+          <div className="grid grid-cols-1 gap-4">
+            {filteredInquiries.map((inq) => {
+              const catStyle = getCategoryStyle(inq.subject);
+              const formattedDate = formatInquiryDate(inq.submittedAt);
+              const cleanPhone = (inq.phone || '').replace(/[^0-9]/g, '');
+
+              return (
+                <div
+                  key={inq.id}
+                  className="rounded-2xl bg-neutral-900/80 border border-neutral-800 hover:border-neutral-700 transition-all p-5 shadow-xl space-y-4 relative overflow-hidden group"
+                >
+                  {/* Category Accent Top Line */}
+                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${catStyle.accent}`} />
+
+                  {/* Header: User Avatar & Topic */}
+                  <div className="flex flex-wrap items-start justify-between gap-3 pt-1">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600/20 to-neutral-800 border border-red-500/30 flex items-center justify-center font-heading font-black text-sm text-red-400 shadow-inner shrink-0">
+                        {(inq.name || 'U').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <h4 className="font-heading font-black text-white text-sm sm:text-base tracking-wide flex items-center gap-2">
+                          <span>{inq.name || 'Anonymous User'}</span>
+                        </h4>
+                        {formattedDate ? (
+                          <span className="text-[10px] font-mono text-neutral-500 flex items-center gap-1 mt-0.5">
+                            <Clock className="w-3 h-3 text-neutral-600" />
+                            <span>{formattedDate}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-neutral-600">Contact Form Submission</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider border ${catStyle.badge}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${catStyle.dot}`} />
+                        <span>{inq.subject || 'General Inquiry'}</span>
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteInquiry(inq.id)}
+                        disabled={deletingId === inq.id}
+                        className="p-1.5 rounded-lg bg-neutral-950/80 hover:bg-red-950/60 text-neutral-500 hover:text-red-400 border border-neutral-800 hover:border-red-500/40 transition-all cursor-pointer"
+                        title="Delete / Dismiss Inquiry"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* User Contact Details Box */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 rounded-xl bg-black/60 border border-neutral-800/80 font-mono text-xs">
+                    {/* Email Box */}
+                    <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-neutral-900/50 border border-neutral-800/60">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Mail className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                        <span className="text-neutral-500 text-[10px] uppercase shrink-0">Email:</span>
+                        <a
+                          href={`mailto:${inq.email}`}
+                          className="text-neutral-200 hover:text-red-400 hover:underline truncate"
+                          title={inq.email}
+                        >
+                          {inq.email || 'N/A'}
+                        </a>
+                      </div>
+                      {inq.email && (
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(inq.email, `email_${inq.id}`)}
+                          className="text-neutral-500 hover:text-white p-1 shrink-0 transition-colors"
+                          title="Copy Email"
+                        >
+                          {copiedKey === `email_${inq.id}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Phone Box */}
+                    <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-neutral-900/50 border border-neutral-800/60">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Phone className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                        <span className="text-neutral-500 text-[10px] uppercase shrink-0">Phone:</span>
+                        <a
+                          href={`tel:${inq.phone}`}
+                          className="text-neutral-200 hover:text-red-400 hover:underline font-mono truncate"
+                        >
+                          {inq.phone || 'N/A'}
+                        </a>
+                      </div>
+                      {inq.phone && (
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(inq.phone, `phone_${inq.id}`)}
+                          className="text-neutral-500 hover:text-white p-1 shrink-0 transition-colors"
+                          title="Copy Phone"
+                        >
+                          {copiedKey === `phone_${inq.id}` ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* User Query / Message Box */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500 uppercase tracking-wider px-1">
+                      <span className="flex items-center gap-1.5">
+                        <MessageSquare className="w-3 h-3 text-neutral-400" />
+                        <span>Query / Message</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(inq.message, `msg_${inq.id}`)}
+                        className="hover:text-neutral-200 flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        {copiedKey === `msg_${inq.id}` ? (
+                          <span className="text-emerald-400 font-bold flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Copied
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <Copy className="w-3 h-3" /> Copy Message
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                    <div className="p-4 rounded-xl bg-neutral-950 border border-neutral-800/90 text-xs sm:text-sm text-neutral-200 font-cyber leading-relaxed whitespace-pre-wrap break-words">
+                      {inq.message}
+                    </div>
+                  </div>
+
+                  {/* Quick Action Footer Buttons */}
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-neutral-900">
+                    {cleanPhone && (
+                      <a
+                        href={`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(`Hello ${inq.name || ''}, regarding your query on SAMYAK 2026 (${inq.subject || ''}):`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <Phone className="w-3 h-3" />
+                        <span>WhatsApp Attendee</span>
+                      </a>
+                    )}
+                    {inq.email && (
+                      <a
+                        href={`mailto:${inq.email}?subject=${encodeURIComponent(`SAMYAK 2026 - Re: ${inq.subject || 'Your Inquiry'}`)}`}
+                        className="px-3.5 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900/80 text-red-300 border border-red-500/30 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <Mail className="w-3 h-3" />
+                        <span>Reply via Email</span>
+                      </a>
+                    )}
+                  </div>
                 </div>
-                <div className="text-xs font-mono text-red-400 font-bold">{inq.subject}</div>
-                <p className="text-xs text-neutral-300 font-cyber bg-neutral-950 p-3 rounded-xl border border-neutral-800">
-                  {inq.message}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
