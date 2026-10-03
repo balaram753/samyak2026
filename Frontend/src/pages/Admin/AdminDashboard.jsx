@@ -6,7 +6,7 @@ import {
   Upload, CheckCircle2, AlertCircle, Save, Eye, Users, Calendar, 
   Phone, Mail, MapPin, Trophy, DollarSign, Clock, FileText, Image as ImageIcon,
   ChevronRight, RefreshCw, X, Search, Filter, Layers, HelpCircle, Folder,
-  UserCheck, Download, CreditCard, Ticket, Cpu, Award, Star
+  UserCheck, CreditCard, Ticket, Cpu, Award, Star
 } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { useSiteContent } from '../../context/SiteContentContext';

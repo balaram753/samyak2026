@@ -648,7 +648,7 @@ export default function TotalUsersManager({ onToast }) {
         }
       } catch {}
     }
-  }, [consolidatedUsers]);
+  }, [consolidatedUsers, selectedUserModal]);
 
   // Save edited user profile directly to Firestore
   const handleSaveUserEdits = async () => {
