@@ -5,7 +5,7 @@ import {
   User, School, 
   CreditCard, ArrowRight, ShieldCheck,
   LogOut, Upload, X, Edit, IdCard,
-  Lock, Eye, RefreshCw, Sparkles
+  Lock, Eye, RefreshCw
 } from 'lucide-react';
 import { useUser } from '../../data/useUser';
 import GatePassCard from '../Payment/GatePassCard';

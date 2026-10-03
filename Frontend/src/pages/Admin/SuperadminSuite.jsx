@@ -4,17 +4,11 @@ import {
   Shield, Plus, ArrowLeft, Download, Search, Filter, 
   Copy, Trash2, CheckCircle2, AlertCircle, 
   UserCheck, Lock, ExternalLink, ChevronDown, 
-  Phone, Mail, Building, Sparkles
+  Building
 } from 'lucide-react';
 import { 
   collection, 
-  onSnapshot, 
-  doc, 
-  setDoc, 
-  deleteDoc, 
-  updateDoc, 
-  serverTimestamp,
-  getDocs
+  onSnapshot 
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAdminAuth, isSuperAdminEmail } from '../../context/AdminAuthContext';
@@ -135,7 +129,7 @@ const STARTER_ROSTER = [
 
 
 export default function SuperadminSuite({ onToast }) {
-  const { isSuperAdmin, provisionNewAdmin, deleteAdmin } = useAdminAuth();
+  const { provisionNewAdmin, deleteAdmin } = useAdminAuth();
   const { departments } = useSiteContent();
 
   const [viewMode, setViewMode] = useState('roster'); // 'roster' or 'provision'
@@ -158,7 +152,6 @@ export default function SuperadminSuite({ onToast }) {
     });
     return list;
   }, [departments]);
-  const [loading, setLoading] = useState(true);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -237,7 +230,6 @@ export default function SuperadminSuite({ onToast }) {
 
   // Real-time Firestore sync of admins collection
   useEffect(() => {
-    setLoading(true);
     const adminsCol = collection(db, 'admins');
     const unsub = onSnapshot(adminsCol, (snapshot) => {
       const list = [];
@@ -255,11 +247,9 @@ export default function SuperadminSuite({ onToast }) {
       } else {
         setAdminsList(list);
       }
-      setLoading(false);
     }, (err) => {
       console.warn('Admins listener note:', err);
       setAdminsList(STARTER_ROSTER);
-      setLoading(false);
     });
 
     return () => unsub();
