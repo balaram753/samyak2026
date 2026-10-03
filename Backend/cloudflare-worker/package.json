@@ -1,0 +1,14 @@
+{
+  "name": "samyak-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute samyak2026 --remote --file schema.sql",
+    "db:init:local": "wrangler d1 execute samyak2026 --local --file schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

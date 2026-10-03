@@ -1,0 +1,50 @@
+{
+  "name": "samyak-2026",
+  "private": true,
+  "version": "1.0.0",
+  "author": "Balaram (https://github.com/balaram753)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/balaram753/samyak2026.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "npm run --prefix Frontend dev",
+    "build": "npm run --prefix Frontend build",
+    "deploy": "npm run --prefix Frontend deploy",
+    "preview": "npm run --prefix Frontend preview",
+    "lint": "npm run --prefix Frontend lint",
+    "dev:frontend": "npm run --prefix Frontend dev",
+    "build:frontend": "npm run --prefix Frontend build",
+    "deploy:frontend": "npm run --prefix Frontend build && npm run --prefix Frontend deploy",
+    "deploy:backend": "npm run --prefix Backend deploy:rules",
+    "verify:backend": "npm run --prefix Backend verify-qr",
+    "dev:api": "npm run --prefix Backend/cloudflare-worker dev",
+    "deploy:api": "npm run --prefix Backend/cloudflare-worker deploy"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1137.0",
+    "firebase": "^12.19.0",
+    "framer-motion": "^13.4.0",
+    "gsap": "^3.15.0",
+    "lenis": "^1.3.26",
+    "lucide-react": "^1.47.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.4",
+    "three": "^0.186.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "jsqr": "^1.4.0",
+    "oxlint": "^1.81.0",
+    "pngjs": "^7.0.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.0"
+  }
+}

@@ -1,0 +1,538 @@
+rules_version = '2';
+// SAMYAK 2026 Firestore rules: the single authoritative ruleset.
+// /firestore.rules and /Backend/firestore.rules must stay byte-identical.
+//
+// Architecture: event/site content, media, gallery, inquiries and club reports
+// live in Cloudflare D1 behind the SAMYAK Worker. Firestore holds identity,
+// registrations, payments, gate passes, core team data and the maintenance flag.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // IDENTITY & ROLES
+    // A role record lives in admins/{id} or staff/{id}, where {id} is the
+    // account's Firebase UID or its *verified* lowercase email. No other id
+    // format is ever recognised, and writes enforce the same format.
+    // =========================================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function verifiedEmail() {
+      return isAuthenticated()
+          && request.auth.token.get('email', null) != null
+          && request.auth.token.get('email_verified', false) == true
+        ? request.auth.token.email.lower()
+        : '__no_verified_email__';
+    }
+
+    function isSuperAdmin() {
+      return verifiedEmail() in ['udaykiranvempati123@gmail.com', 'balaram777.ch@gmail.com', 'harshasai955@gmail.com'];
+    }
+
+    function roleRecordGrants(coll, id, roles) {
+      let path = /databases/$(database)/documents/$(coll)/$(id);
+      return exists(path)
+        && get(path).data.get('role', '') in roles
+        && get(path).data.get('active', true) != false
+        && get(path).data.get('status', 'active') != 'suspended';
+    }
+
+    function hasRole(roles) {
+      return isAuthenticated() && (
+        roleRecordGrants('admins', request.auth.uid, roles)
+        || roleRecordGrants('admins', verifiedEmail(), roles)
+        || roleRecordGrants('staff', request.auth.uid, roles)
+        || roleRecordGrants('staff', verifiedEmail(), roles)
+      );
+    }
+
+    // Full administrators: every operational collection.
+    function isAdmin() {
+      return isSuperAdmin()
+        || hasRole(['super_admin', 'admin', 'wing_admin', 'SUPER_ADMIN', 'ADMIN', 'WING_ADMIN']);
+    }
+
+    // Registrations desk: payment verification and gate pass issuing only.
+    function isRegistrationsDesk() {
+      return isAdmin() || hasRole(['registrations_desk', 'REGISTRATIONS_DESK']);
+    }
+
+    // Events admin: event seat counters only (event content itself is in D1).
+    function isEventsAdmin() {
+      return isAdmin() || hasRole(['events_admin', 'EVENTS_ADMIN']);
+    }
+
+    // Gate staff: check-in only.
+    function isGateStaff() {
+      return isAdmin()
+        || hasRole(['core_team', 'gate_staff', 'security', 'volunteer', 'CORE_TEAM', 'GATE_STAFF', 'SECURITY', 'VOLUNTEER']);
+    }
+
+    function isGateLevelRole(role) {
+      return role in ['core_team', 'gate_staff', 'security', 'volunteer', 'CORE_TEAM', 'GATE_STAFF', 'SECURITY', 'VOLUNTEER'];
+    }
+
+    // A role record's id must be the account's UID or its lowercase email.
+    function roleRecordIdOk(id) {
+      return id == request.resource.data.get('uid', '__none__')
+        || (request.resource.data.get('email', null) is string
+            && id == request.resource.data.email.lower());
+    }
+
+    function isOwnRoleRecord(id) {
+      return isAuthenticated() && (
+        id == request.auth.uid
+        || id == verifiedEmail()
+        || resource.data.get('email', '').lower() == verifiedEmail()
+      );
+    }
+
+    // =========================================================================
+    // 1. ADMINS & STAFF
+    // =========================================================================
+    // Access is decided by the document id, which never changes, so only new
+    // records must use the UID / email id format. Updates to legacy-id records
+    // (e.g. removing old PIN fields) cannot make them grant anything.
+    match /admins/{adminId} {
+      allow read: if isAdmin() || isOwnRoleRecord(adminId);
+      allow create: if isSuperAdmin() && roleRecordIdOk(adminId);
+      allow update, delete: if isSuperAdmin();
+    }
+
+    // Admins may manage gate-level staff; only super admins grant other roles.
+    match /staff/{staffId} {
+      allow read: if isAdmin() || isOwnRoleRecord(staffId);
+      allow create: if roleRecordIdOk(staffId) && (
+        isSuperAdmin()
+        || (isAdmin() && isGateLevelRole(request.resource.data.get('role', '')))
+      );
+      allow update: if isSuperAdmin()
+        || (isAdmin()
+            && isGateLevelRole(resource.data.get('role', ''))
+            && isGateLevelRole(request.resource.data.get('role', '')));
+      allow delete: if isSuperAdmin()
+        || (isAdmin() && isGateLevelRole(resource.data.get('role', '')));
+    }
+
+    // =========================================================================
+    // 2. USER PROFILES (phone, student ID, ID card): owner and admins only
+    // =========================================================================
+    function ownerLeavesUntouched(fields) {
+      return resource == null
+        ? !request.resource.data.keys().hasAny(fields)
+        : !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isKluAccount() {
+      return verifiedEmail().matches('.*@kluniversity[.]in$');
+    }
+
+    // VERIFIED is only self-assignable for EXTERNAL, or INTERNAL with a verified
+    // @kluniversity.in account; anything else stays PENDING for admin review.
+    function studentCategoryVerificationOk() {
+      let cvs = request.resource.data.get('categoryVerificationStatus', null);
+      let old = resource == null ? null : resource.data.get('categoryVerificationStatus', null);
+      return cvs == null || cvs == old || cvs == 'PENDING'
+        || (cvs == 'VERIFIED'
+            && (request.resource.data.get('category', null) == 'EXTERNAL'
+                || (request.resource.data.get('category', null) == 'INTERNAL' && isKluAccount())));
+    }
+
+    function userStatusFields() {
+      return [
+        'paymentStatus', 'gatePassStatus', 'gatePassToken', 'gatePassIssuedAt', 'isStudentVerified',
+        'idVerified', 'idVerifiedAt', 'idVerifiedBy', 'verified', 'verifiedAt', 'verifiedBy',
+        'categoryVerificationStatus', 'categoryVerifiedAt', 'categoryVerifiedBy'
+      ];
+    }
+
+    function userHasVerifiedGatePass(uid) {
+      let userPath = /databases/$(database)/documents/users/$(uid);
+      return isAuthenticated()
+        && request.auth.uid == uid
+        && exists(userPath)
+        && get(userPath).data.get('paymentStatus', '') == 'VERIFIED'
+        && get(userPath).data.get('gatePassStatus', '') == 'ISSUED';
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin() || isRegistrationsDesk());
+      allow create: if isAdmin() || (
+        isAuthenticated()
+        && request.auth.uid == userId
+        && ownerLeavesUntouched(userStatusFields().concat(['role', 'adminRole', 'isAdmin', 'isSuperAdmin',
+                                 'verifiedAt', 'verifiedBy', 'checkedIn', 'checkedInAt', 'attendance']))
+        && studentCategoryVerificationOk()
+      );
+      allow update: if isAdmin()
+        // Registrations desk mirrors payment / gate pass status & category verification.
+        || (isRegistrationsDesk()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+                 userStatusFields().concat(['categoryVerificationStatus', 'verifiedAt', 'verifiedBy'])
+               ))
+        || (
+          isAuthenticated()
+          && request.auth.uid == userId
+          && ownerLeavesUntouched(userStatusFields().concat(['role', 'adminRole', 'isAdmin', 'isSuperAdmin',
+                                   'verifiedAt', 'verifiedBy', 'checkedIn', 'checkedInAt', 'attendance']))
+          && studentCategoryVerificationOk()
+        );
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 3. PAYMENTS + UTR CLAIMS
+    // A UTR can be claimed by exactly one account. The claim document id is
+    // the UTR itself, so a second account's write is an update and is denied.
+    // =========================================================================
+    function utrClaimedBy(utr, uid) {
+      return utr is string
+        && exists(/databases/$(database)/documents/utr_claims/$(utr))
+        && get(/databases/$(database)/documents/utr_claims/$(utr)).data.uid == uid;
+    }
+
+    match /utr_claims/{utr} {
+      allow get: if isRegistrationsDesk() || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow list: if isRegistrationsDesk();
+      allow create: if isAuthenticated()
+        && utr.matches('^[A-Za-z0-9]{10,16}$')
+        && request.resource.data.keys().hasOnly(['uid', 'registrationId', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      allow update: if isAdmin() || (
+        isAuthenticated()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isRegistrationsDesk() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated()
+        && request.resource.data.userId == request.auth.uid
+        && utrClaimedBy(request.resource.data.utrId, request.auth.uid)
+        && request.resource.data.keys().hasOnly([
+             'userId', 'name', 'email', 'phone', 'rollNo', 'university', 'college', 'category',
+             'utrId', 'transactionId', 'tier', 'amount', 'registrationId', 'registrationNumber',
+             'clgIdPicUrl', 'paymentScreenshotUrl', 'paymentStatus', 'gatePassStatus', 'gatePassToken',
+             'timestamp', 'date'])
+        && request.resource.data.paymentStatus in ['PENDING_PAYMENT', 'PAYMENT_SUBMITTED', 'PENDING_VERIFICATION']
+        && request.resource.data.gatePassStatus == 'NOT_ISSUED'
+        && request.resource.data.gatePassToken == null;
+      allow update: if isRegistrationsDesk();
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 4. REGISTRATIONS (unified lifecycle)
+    // Students may create/update only their own registration and may never
+    // self-verify a payment or self-issue / reset a gate pass.
+    // =========================================================================
+    function studentPaymentOk() {
+      let p = request.resource.data.get('payment', null);
+      return p == null
+        || (resource != null && p == resource.data.get('payment', null))
+        || (p.status in ['PENDING_PAYMENT', 'PAYMENT_SUBMITTED', 'PENDING_VERIFICATION']
+            && p.get('verifiedAt', null) == null
+            && p.get('verifiedBy', null) == null);
+    }
+
+    function studentGatePassOk() {
+      let g = request.resource.data.get('gatePass', null);
+      return g == null
+        || (resource != null && g == resource.data.get('gatePass', null))
+        || (g.status == 'NOT_ISSUED'
+            && g.get('token', null) == null
+            && g.get('checkedIn', false) == false);
+    }
+
+    // On create: category must be INTERNAL or EXTERNAL. On update: unchanged.
+    function studentCategoryOk() {
+      let newCategory = request.resource.data.get('category', null);
+      let oldCategory = resource != null ? resource.data.get('category', null) : null;
+      return newCategory == null
+        || newCategory in ['INTERNAL', 'EXTERNAL']
+        && (resource == null || newCategory == oldCategory);
+    }
+
+    // Students can never change their own attendance.
+    function studentAttendanceOk() {
+      let newAttendance = request.resource.data.get('attendance', null);
+      let oldAttendance = resource != null ? resource.data.get('attendance', null) : null;
+      return newAttendance == null
+        || (resource != null && newAttendance == oldAttendance);
+    }
+
+    // Gate staff never read registrations (they hold UTRs, payment proofs and ID
+    // cards). They may only flip an ISSUED gate pass to USED, or mark attendance.
+    function gateCheckInOnly() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return (
+          changed.hasOnly(['gatePass', 'updatedAt'])
+          && request.resource.data.gatePass.diff(resource.data.gatePass).affectedKeys()
+               .hasOnly(['status', 'checkedIn', 'checkedInAt', 'checkedInBy', 'checkedInByName', 'checkedInByRole'])
+          && resource.data.gatePass.status == 'ISSUED'
+          && request.resource.data.gatePass.status == 'USED'
+        ) || (
+          changed.hasOnly(['attendance', 'updatedAt'])
+          && request.resource.data.attendance.status == 'PRESENT'
+        );
+    }
+
+    match /registrations/{regId} {
+      allow read: if isRegistrationsDesk() || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow create: if isAuthenticated()
+        && request.resource.data.uid == request.auth.uid
+        && studentPaymentOk() && studentGatePassOk()
+        && studentCategoryOk() && studentAttendanceOk()
+        && studentCategoryVerificationOk();
+      allow update: if isRegistrationsDesk()
+        || (isGateStaff() && gateCheckInOnly())
+        || (
+          isAuthenticated()
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && studentPaymentOk() && studentGatePassOk()
+          && studentCategoryOk() && studentAttendanceOk()
+          && studentCategoryVerificationOk()
+        );
+      allow delete: if isAdmin();
+    }
+
+    // Legacy registration records mirrored by the gate pass issuer.
+    match /student_registrations/{regId} {
+      allow read, create, update: if isRegistrationsDesk();
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 5. GATE PASSES
+    // A token is a bearer secret: anyone holding it may fetch that one pass.
+    // Gate staff may list only passes that are already checked in (the scanner's
+    // "recent entries" feed) and may only perform the ISSUED -> USED check-in.
+    // =========================================================================
+    match /gate_passes/{token} {
+      allow get: if true;
+      allow list: if isRegistrationsDesk() || (isGateStaff() && resource.data.checkedIn == true);
+      allow create: if isRegistrationsDesk();
+      allow update: if isRegistrationsDesk() || (
+        isGateStaff()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'checkedIn', 'checkedInAt', 'checkedInBy', 'checkedInByName', 'checkedInByRole',
+             'gatePassStatus', 'updatedAt'])
+        && resource.data.gatePassStatus == 'ISSUED'
+        && resource.data.paymentStatus == 'VERIFIED'
+        && request.resource.data.gatePassStatus == 'USED'
+        && request.resource.data.checkedIn == true
+      );
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 6. AUDIT TRAILS (immutable; they reference payments and pass tokens)
+    // =========================================================================
+    match /audit_logs/{logId} {
+      allow create: if isAuthenticated();
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /gate_pass_audits/{auditId} {
+      allow create: if isGateStaff();
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /gatePassAudit/{auditId} {
+      allow create: if isGateStaff();
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /attendanceAudit/{auditId} {
+      allow create: if isGateStaff();
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // =========================================================================
+    // 7. EVENT REGISTRATIONS
+    // Doc id is `<eventId>__<uid>`: one registration per account per event.
+    // Registering twice is an update, which only staff may do. Admins may
+    // create on a student's behalf (legacy migration).
+    // =========================================================================
+    match /event_registrations/{regId} {
+      allow get: if isAdmin()
+        || (isAuthenticated() && regId.matches('^.+__' + request.auth.uid + '$'));
+      allow list: if isAdmin()
+        || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow create: if isAdmin() || (
+        verifiedEmail() != '__no_verified_email__'
+        && request.resource.data.keys().hasAll(['event_id', 'email', 'student_name', 'uid'])
+        && request.resource.data.uid == request.auth.uid
+        && regId == request.resource.data.event_id + '__' + request.auth.uid
+        && request.resource.data.email == verifiedEmail()
+        && request.resource.data.student_name is string
+        && request.resource.data.student_name.size() <= 80
+        && request.resource.data.attendance == false
+      );
+      allow update: if isAdmin() || (
+        isGateStaff()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendance', 'attended_at'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 8. EVENT STATS (aggregate counters)
+    // Staff may write freely. A student may only apply the bump their own
+    // registration produces: +1 to totalEnrolled and paymentPending, and +1 to
+    // exactly one of internalCount / externalCount.
+    // =========================================================================
+    function bumpedByOne(field) {
+      return request.resource.data.get(field, 0) == resource.data.get(field, 0) + 1;
+    }
+
+    function unchanged(field) {
+      return request.resource.data.get(field, 0) == resource.data.get(field, 0);
+    }
+
+    match /eventStats/{docId} {
+      allow read: if isRegistrationsDesk() || isGateStaff();
+      allow create, delete: if isAdmin();
+      allow update: if isRegistrationsDesk() || isGateStaff() || (
+        isAuthenticated()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['totalEnrolled', 'paymentPending', 'internalCount', 'externalCount', 'updatedAt'])
+        && bumpedByOne('totalEnrolled')
+        && bumpedByOne('paymentPending')
+        && ((bumpedByOne('internalCount') && unchanged('externalCount'))
+            || (bumpedByOne('externalCount') && unchanged('internalCount')))
+      );
+    }
+
+    // =========================================================================
+    // 9. PUBLIC CONTENT & WORKSHOPS
+    // =========================================================================
+    // Admin editable site content (settings, departments, schedule, about, sponsors)
+    match /site_content/{document} {
+      allow read: if true;
+      allow write: if isAdmin() || isEventsAdmin();
+    }
+
+    // Event content (seat counters & event documents)
+    match /events/{eventId} {
+      allow read: if true;
+      allow create, delete: if isEventsAdmin();
+      allow update: if isEventsAdmin() || (
+        isAuthenticated()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registration_count', 'available_seats', 'updated_at'])
+        && request.resource.data.registration_count == resource.data.get('registration_count', 0) + 1
+        && request.resource.data.available_seats is int
+        && request.resource.data.available_seats >= 0
+        && request.resource.data.available_seats < resource.data.get('available_seats', 1000000)
+      );
+    }
+
+    // Dedicated Technical Workshops
+    match /workshops/{workshopId} {
+      allow read: if true;
+      allow create, delete: if isEventsAdmin();
+      allow update: if isEventsAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registeredCount', 'availableSeats', 'updated_at'])
+      );
+    }
+
+    // Workshop Registrations & Workshop Payments
+    match /workshop_registrations/{regId} {
+      allow read: if isRegistrationsDesk() || (
+        isAuthenticated() && (
+          resource.data.get('uid', '') == request.auth.uid ||
+          (resource.data.get('email', '') is string && resource.data.email == verifiedEmail())
+        )
+      );
+      allow create: if (
+        request.resource.data.keys().hasAll(['workshop_id', 'student_name', 'email'])
+        && (
+          // Verified pass holder: gate pass must exist and be issued in users/{uid}
+          (request.resource.data.get('is_gate_pass_verified', false) == true
+           && userHasVerifiedGatePass(request.resource.data.get('uid', '')))
+          // Standard payment: status must be PENDING_VERIFICATION (never self-confirmed)
+          || (request.resource.data.get('status', 'PENDING_VERIFICATION') in ['PENDING_VERIFICATION', 'PENDING']
+              && request.resource.data.get('is_gate_pass_verified', false) == false)
+        )
+      );
+      allow update: if isRegistrationsDesk();
+      allow delete: if isAdmin();
+    }
+    match /gallery/{itemId} {
+      allow read: if true;
+      allow delete: if isAdmin();
+    }
+
+    match /gallery_photos/{photoId} {
+      allow read: if true;
+      allow delete: if isAdmin();
+    }
+
+    match /media_folders/{folderId} {
+      allow read: if true;
+      allow delete: if isAdmin();
+    }
+
+    match /media_files/{fileId} {
+      allow read: if true;
+      allow delete: if isAdmin();
+    }
+
+    match /inquiries/{inquiryId} {
+      allow read, delete: if isAdmin();
+    }
+
+    match /club_reports/{reportId} {
+      allow read, delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 10. CORE TEAM
+    // A link's token is the secret: anyone may fetch one invite by exact id,
+    // but only admins can list, create or close links. Registrations can be
+    // created only through an active link and are readable only by admins.
+    // =========================================================================
+    match /core_invites/{token} {
+      allow get: if true;
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /core_members/{memberId} {
+      allow create: if isAdmin() || (
+        request.resource.data.keys().hasOnly([
+            'inviteToken', 'memberCode', 'name', 'role', 'team', 'studentId',
+            'branch', 'phone', 'bloodGroup', 'photoUrl', 'createdAt'])
+        && request.resource.data.inviteToken is string
+        && exists(/databases/$(database)/documents/core_invites/$(request.resource.data.inviteToken))
+        && get(/databases/$(database)/documents/core_invites/$(request.resource.data.inviteToken)).data.active == true
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+        && request.resource.data.phone is string && request.resource.data.phone.size() <= 20
+        && request.resource.data.photoUrl is string && request.resource.data.photoUrl.size() <= 500
+        && request.resource.data.createdAt == request.time
+      );
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Public /team projection. Even admins can only store public-safe fields,
+    // so phone, student ID, blood group, UID or invite data can never leak here.
+    match /team_public/{memberId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+             'id', 'name', 'role', 'team', 'photoUrl', 'profileImage', 'bio',
+             'instagram', 'github', 'linkedin', 'email', 'website',
+             'showOnPublicTeam', 'teamOrder', 'createdAt', 'updatedAt']);
+      allow delete: if isAdmin();
+    }
+  }
+}

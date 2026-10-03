@@ -1,0 +1,31 @@
+name = "samyak-api"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# Files (posters, gallery, media, sponsor logos, ID photos, payment proofs).
+# No access keys are needed: the Worker talks to the bucket through this binding.
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "samyak"
+
+# ID cards and payment proofs. REQUIRED: this bucket must have NO public access;
+# files are served only through /api/private-files/<key>. Create it once with
+#   npx wrangler r2 bucket create samyak-private
+# The Worker refuses private uploads if this binding is missing (fails closed).
+[[r2_buckets]]
+binding = "PRIVATE_FILES"
+bucket_name = "samyak-private"
+
+# Site content (events, site_content, media lists, gallery, inquiries, club reports).
+[[d1_databases]]
+binding = "DB"
+database_name = "samyak2026"
+database_id = "11a1c202-6028-462d-8708-866b0a067479"
+
+[vars]
+FIREBASE_PROJECT_ID = "nirva-7e226"
+# Public base URL of the R2 bucket (R2 dashboard -> bucket -> Settings -> Public access).
+PUBLIC_FILES_URL = "https://pub-4e129d23d90c46c38c90a8108ca48369.r2.dev"
+# Sites allowed to call this API (comma separated). Add the production domain before launch.
+ALLOWED_ORIGINS = "https://samyak2026.balaram753-ch.workers.dev,http://localhost:5173,https://klsamyak.in,https://www.klsamyak.in"
+SUPER_ADMIN_EMAILS = "udaykiranvempati123@gmail.com,balaram777.ch@gmail.com,harshasai955@gmail.com"

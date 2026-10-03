@@ -1,0 +1,11 @@
+// Cloudflare Workers Builds run from the repo root (`npm run build` -> Frontend/dist).
+// Local deploys from Frontend/ use Frontend/wrangler.jsonc; keep the two in sync.
+{
+  "name": "samyak2026",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./Frontend/dist",
+    // /team, /events/<id>, /core-register/<token>, ... are client-side routes.
+    "not_found_handling": "single-page-application"
+  }
+}
