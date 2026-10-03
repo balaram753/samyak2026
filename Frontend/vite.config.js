@@ -25,5 +25,22 @@ export default defineConfig({
       'three165': 'three',
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    modulePreload: {
+      polyfill: true,
+    },
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('firebase')) return 'vendor-firebase';
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) return 'vendor-core';
+            if (id.includes('lucide-react') || id.includes('framer-motion') || id.includes('lenis')) return 'vendor-ui';
+          }
+        },
+      },
+    },
+  },
 })
 

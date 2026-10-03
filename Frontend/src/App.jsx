@@ -18,24 +18,26 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Home from './pages/Home';
 import AboutPage from './pages/AboutPage';
 
-// Code-Split Routes (Lazy loaded on-demand to keep initial JS bundle ultra-fast)
-const EventsPage = lazy(() => import('./pages/EventsPage'));
-const EventDetailsPage = lazy(() => import('./pages/EventDetailsPage'));
-const EventRegistrationPage = lazy(() => import('./pages/EventRegistrationPage'));
-const WorkshopsPage = lazy(() => import('./pages/WorkshopsPage'));
-const WorkshopDetailsPage = lazy(() => import('./pages/WorkshopDetailsPage'));
-const SchedulePage = lazy(() => import('./pages/SchedulePage'));
-const GalleryPage = lazy(() => import('./pages/GalleryPage'));
-const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-const PaymentPage = lazy(() => import('./pages/PaymentPage'));
-const ContactPage = lazy(() => import('./pages/ContactPage'));
-const CoreRegisterPage = lazy(() => import('./pages/CoreRegisterPage'));
-const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
-const AdminLoginPage = lazy(() => import('./pages/Admin/AdminLoginPage'));
-const EventEditorPage = lazy(() => import('./pages/Admin/EventEditorPage'));
-const GateScannerPage = lazy(() => import('./pages/GateScannerPage'));
-const GateVerifyPage = lazy(() => import('./pages/GateVerifyPage'));
-const MaintenancePage = lazy(() => import('./pages/MaintenancePage'));
+// Code-Split Routes (Lazy loaded with auto-retry and chunk-recovery)
+import { lazyWithRetry } from './utils/lazyWithRetry';
+
+const EventsPage = lazyWithRetry(() => import('./pages/EventsPage'), 'EventsPage');
+const EventDetailsPage = lazyWithRetry(() => import('./pages/EventDetailsPage'), 'EventDetailsPage');
+const EventRegistrationPage = lazyWithRetry(() => import('./pages/EventRegistrationPage'), 'EventRegistrationPage');
+const WorkshopsPage = lazyWithRetry(() => import('./pages/WorkshopsPage'), 'WorkshopsPage');
+const WorkshopDetailsPage = lazyWithRetry(() => import('./pages/WorkshopDetailsPage'), 'WorkshopDetailsPage');
+const SchedulePage = lazyWithRetry(() => import('./pages/SchedulePage'), 'SchedulePage');
+const GalleryPage = lazyWithRetry(() => import('./pages/GalleryPage'), 'GalleryPage');
+const ProfilePage = lazyWithRetry(() => import('./pages/ProfilePage'), 'ProfilePage');
+const PaymentPage = lazyWithRetry(() => import('./pages/PaymentPage'), 'PaymentPage');
+const ContactPage = lazyWithRetry(() => import('./pages/ContactPage'), 'ContactPage');
+const CoreRegisterPage = lazyWithRetry(() => import('./pages/CoreRegisterPage'), 'CoreRegisterPage');
+const AdminDashboard = lazyWithRetry(() => import('./pages/Admin/AdminDashboard'), 'AdminDashboard');
+const AdminLoginPage = lazyWithRetry(() => import('./pages/Admin/AdminLoginPage'), 'AdminLoginPage');
+const EventEditorPage = lazyWithRetry(() => import('./pages/Admin/EventEditorPage'), 'EventEditorPage');
+const GateScannerPage = lazyWithRetry(() => import('./pages/GateScannerPage'), 'GateScannerPage');
+const GateVerifyPage = lazyWithRetry(() => import('./pages/GateVerifyPage'), 'GateVerifyPage');
+const MaintenancePage = lazyWithRetry(() => import('./pages/MaintenancePage'), 'MaintenancePage');
 import { IS_MAINTENANCE_MODE, fetchEdgeStatus } from './config/maintenanceConfig';
 import { initIntegrityGuard } from './services/integrityGuard';
 

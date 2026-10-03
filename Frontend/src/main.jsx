@@ -39,6 +39,38 @@ try {
   }
 } catch (_) {}
 
+// Auto-recover from stale Vite dynamic import chunk errors after deployments
+if (typeof window !== 'undefined') {
+  window.addEventListener('vite:preloadError', (event) => {
+    console.warn('Vite preload error detected. Auto-reloading with latest chunks...', event);
+    event.preventDefault();
+    const now = Date.now();
+    const lastReload = Number(sessionStorage.getItem('last_vite_preload_reload') || 0);
+    if (now - lastReload > 8000) {
+      sessionStorage.setItem('last_vite_preload_reload', String(now));
+      window.location.reload();
+    }
+  });
+
+  window.addEventListener('error', (event) => {
+    const msg = String(event?.message || '');
+    if (
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Expected a JavaScript-or-Wasm module script') ||
+      msg.includes('Failed to load module script') ||
+      msg.includes('error loading dynamically imported module')
+    ) {
+      console.warn('Dynamic chunk load failure detected on window. Triggering refresh...');
+      const now = Date.now();
+      const lastReload = Number(sessionStorage.getItem('last_vite_preload_reload') || 0);
+      if (now - lastReload > 8000) {
+        sessionStorage.setItem('last_vite_preload_reload', String(now));
+        window.location.reload();
+      }
+    }
+  });
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
