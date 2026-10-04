@@ -146,7 +146,7 @@ export default function App() {
     if (!isLocked || isMasterBypass) {
       ScrollTrigger.refresh();
     }
-  }, [location.pathname, isLocked, isMasterBypass]);
+  }, [location.pathname, isLocked, isMasterBypass, isLoading]);
 
   // Check if current session is an authorized Super Admin
   const isSuperAdminSession = Boolean(
