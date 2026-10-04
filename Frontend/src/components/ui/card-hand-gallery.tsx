@@ -41,7 +41,7 @@ export interface CardHandGalleryProps {
 }
 
 /** Flick speed that triggers selection on drag */
-const SELECT_VELOCITY = -500;
+const _SELECT_VELOCITY = -500;
 
 /** Cards in the hand scale down slightly so the active card commands hero focus */
 const HAND_SCALE = 0.78;

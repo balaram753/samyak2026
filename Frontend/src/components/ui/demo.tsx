@@ -1,52 +1,26 @@
-"use client";
+"use client"
 
-import {
-  CardHandGallery,
-  type FanCardItem,
-} from "@/components/ui/card-hand-gallery";
+import OnyxGlyphPreloader from "@/components/ui/onyx-glyph-preloader"
 
-const cards: FanCardItem[] = [
-  {
-    id: "deep-field",
-    src: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80",
-    title: "Deep Field",
-    description:
-      "A diver held inside a sunset horizon, the seascape cut to the shape of a profile. Printed at 300gsm on uncoated stock.",
-  },
-  {
-    id: "city-exposure",
-    src: "https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&w=600&q=80",
-    title: "City Exposure",
-    description:
-      "Double exposure of a portrait and a skyline at dusk, where the streetlights read as freckles across the jaw.",
-  },
-  {
-    id: "motion-study",
-    src: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=600&q=80",
-    title: "Motion Study",
-    description:
-      "One long exposure, one turn of the head. The orange backdrop stays still while everything in front of it smears.",
-  },
-  {
-    id: "kinetic-bloom",
-    src: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80",
-    title: "Kinetic Bloom",
-    description:
-      "A racket dissolving mid-swing into a cloud of colour, drawn the moment the follow-through leaves the frame.",
-  },
-  {
-    id: "paper-flight",
-    src: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80",
-    title: "Paper Flight",
-    description:
-      "A cut-paper bird threaded between two fingers, the only colour in an otherwise black and white plate.",
-  },
-];
+// Your own glyphs, mark and metal: a warmer gunmetal with a heavier glitter.
+const glyphs = [
+  { d: "M50 18 L82 50 L50 82 L18 50 Z M50 36 L64 50 L50 64 L36 50 Z", label: "Facet" },
+  { d: "M28 30 H72 M28 50 H72 M28 70 H56", stroke: 10, label: "Notes" },
+  { d: "M50 16 A34 34 0 1 0 50.1 16 Z M50 34 A16 16 0 1 1 49.9 34 Z", label: "Ring" },
+  { d: "M30 70 L50 30 L70 70", stroke: 11, label: "Peak" },
+]
 
-export default function CardHandGalleryDemo() {
+export default function Demo() {
   return (
-    <div className="flex w-full items-center justify-center bg-background px-6 py-10">
-      <CardHandGallery cards={cards} className="max-w-5xl" />
-    </div>
-  );
+    <OnyxGlyphPreloader
+      loop
+      glyphs={glyphs}
+      mark={{ d: "M30 30 L70 70 M70 30 L30 70", stroke: 13, label: "Cross" }}
+      word="Foundry"
+      caption="Four tools, one cast"
+      glitter={1.6}
+      depth={0.12}
+      palette={{ metal: "#3a3633", shade: "#0d0c0b", rim: "#8a7d70", glitter: "#ffe9cf", ink: "#f3e9dd" }}
+    />
+  )
 }

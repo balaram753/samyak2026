@@ -44,12 +44,33 @@ import { initIntegrityGuard } from './services/integrityGuard';
 import { db, doc, onSnapshot } from './services/firebase';
 import { useAdminAuth } from './context/AdminAuthContext';
 
+import LoadingScreen from './components/LoadingScreen/LoadingScreen';
+import PreloaderDemo from './components/ui/demo';
+
 export default function App() {
   const location = useLocation();
   const { isSuperAdmin } = useAdminAuth();
   const [isLocked, setIsLocked] = useState(IS_MAINTENANCE_MODE);
   const [lockReason, setLockReason] = useState(null);
   const [tamperBreach, setTamperBreach] = useState(false);
+
+  // Initial Preloader Gate (runs for 3-4 seconds on entry, bypassable on click or dedicated staff routes)
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname;
+    if (
+      path.startsWith('/admin') ||
+      path.startsWith('/samyakadmin') ||
+      path.startsWith('/samyakeventsedit') ||
+      path.startsWith('/gate') ||
+      path === '/demo' ||
+      path === '/loading' ||
+      path === '/preloader'
+    ) {
+      return false;
+    }
+    return true;
+  });
 
   // Author Master Bypass mechanism: Visiting ?bypass=balaram753 allows developer preview
   // Visiting ?bypass=off or ?bypass=clear resets it to verify maintenance mode as a visitor
@@ -152,6 +173,11 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen bg-black text-slate-100 selection:bg-red-600 selection:text-white">
+      {/* Cinematic Onyx Glyph Preloader (Runs for 3-4s on initial entry, click/enter to rush) */}
+      {isLoading && !isDedicatedAppRoute && (
+        <LoadingScreen onComplete={() => setIsLoading(false)} />
+      )}
+
       {/* Global Polish Effects */}
       <ScrollToTop />
       {!isDedicatedAppRoute && <SmoothScroll />}
@@ -192,6 +218,11 @@ export default function App() {
                 <Route path="/team/*" element={<Navigate to="/" replace />} />
                 <Route path="/team" element={<Navigate to="/" replace />} />
                 <Route path="/core-register/:token" element={<CoreRegisterPage />} />
+
+                {/* Preloader & Loading Page Dedicated Routes */}
+                <Route path="/loading" element={<LoadingScreen loop={true} />} />
+                <Route path="/preloader" element={<LoadingScreen loop={true} />} />
+                <Route path="/demo" element={<PreloaderDemo />} />
 
                 {/* Gate Staff & Security Scanner Routes */}
                 <Route path="/gate" element={<GateScannerPage />} />
