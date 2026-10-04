@@ -254,10 +254,23 @@
   --font-heading: 'Barlow Condensed', sans-serif;
   --font-cyber: 'Barlow Condensed', sans-serif;
   --font-barlow: 'Barlow Condensed', sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
 }
 
 @layer base {
   :root {
+    --background: #050505;
+    --foreground: #ffffff;
+    --muted: #121212;
+    --muted-foreground: #a3a3a3;
+    --border: rgba(255, 255, 255, 0.14);
+    --ring: #DF2531;
+
     /* SAMYAK design tokens — use these instead of raw red/black values. */
     --samyak-red: #DF2531;
     --samyak-red-hover: #e6404b;

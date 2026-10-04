@@ -9,6 +9,7 @@ import { EVENTS_DATA, EVENT_CATEGORIES, compareEventsByOrderAndTime } from '../.
 import { useSiteContent } from '../../context/SiteContentContext';
 import EventCard from '../EventCard/EventCard';
 import Events3DArena from './Events3DArena';
+import EventsHandDeck from './EventsHandDeck';
 
 
 import { useTheme } from '../../context/ThemeContext';
@@ -50,8 +51,8 @@ export default function EventsSection({
   const [subFilterDropdownOpen, setSubFilterDropdownOpen] = useState(false);
   const subFilterRef = useRef(null);
   
-  // View mode (grid is default for high-performance fluid scrolling)
-  const [viewMode, setViewMode] = useState('grid');
+  // View mode (deck on home page for rich interactive card animation; grid for events page)
+  const [viewMode, setViewMode] = useState(isHomePage ? 'deck' : 'grid');
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -250,6 +251,19 @@ export default function EventsSection({
               <div className={`flex items-center p-1 rounded-xl border ${
                 isLight ? 'bg-slate-100 border-slate-300 shadow-xs' : 'bg-neutral-900/80 border-neutral-800 shadow-inner'
               }`}>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('deck')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                    viewMode === 'deck'
+                      ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md font-bold'
+                      : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>CARD DECK</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setViewMode('3d')}
@@ -523,10 +537,17 @@ export default function EventsSection({
         )}
 
         {/* =====================================================================
-            ARENA VIEWPORT: 3D HOLOGRAPHIC ARENA OR RESPONSIVE GRID
+            ARENA VIEWPORT: INTERACTIVE CARD DECK, 3D SCROLLER OR RESPONSIVE GRID
             ===================================================================== */}
         {filteredEvents.length > 0 ? (
-          isHomePage && viewMode === '3d' ? (
+          isHomePage && viewMode === 'deck' ? (
+            <div className="relative z-10">
+              <EventsHandDeck
+                events={filteredEvents}
+                onSelectEvent={(ev) => navigate(`/events/${ev.id}`)}
+              />
+            </div>
+          ) : isHomePage && viewMode === '3d' ? (
             <div className="relative z-10">
               <Events3DArena
                 events={filteredEvents}
